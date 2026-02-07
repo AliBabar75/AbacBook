@@ -1,0 +1,193 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* AbacBook Design System - Professional Accounting ERP
+   All colors in HSL format for consistency
+*/
+
+
+@layer base {
+  :root {
+    /* Core backgrounds - Cream White */
+    --background: 45 30% 96%;
+    --foreground: 150 40% 15%;
+
+    /* Card surfaces - Warm Cream */
+    --card: 45 40% 98%;
+    --card-foreground: 150 40% 15%;
+
+    /* Popover surfaces */
+    --popover: 45 40% 98%;
+    --popover-foreground: 150 40% 15%;
+
+    /* Primary - Dark Forest Green */
+    --primary: 150 50% 22%;
+    --primary-foreground: 45 30% 96%;
+
+    /* Secondary - Light Sage */
+    --secondary: 80 20% 92%;
+    --secondary-foreground: 150 40% 20%;
+
+    /* Muted elements */
+    --muted: 80 15% 90%;
+    --muted-foreground: 150 20% 45%;
+
+    /* Accent - Neon Dark Green */
+    --accent: 145 80% 38%;
+    --accent-foreground: 45 30% 96%;
+
+    /* Destructive - Alert Red */
+    --destructive: 0 70% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Success - Bright Green */
+    --success: 145 70% 35%;
+    --success-foreground: 45 30% 96%;
+
+    /* Warning - Golden Amber */
+    --warning: 45 90% 50%;
+    --warning-foreground: 150 40% 15%;
+
+    /* Borders and inputs */
+    --border: 80 20% 85%;
+    --input: 80 20% 85%;
+    --ring: 145 80% 38%;
+
+    --radius: 0.5rem;
+
+    /* Sidebar - Deep Forest Green */
+    --sidebar-background: 150 50% 15%;
+    --sidebar-foreground: 45 30% 90%;
+    --sidebar-primary: 45 30% 96%;
+    --sidebar-primary-foreground: 150 50% 15%;
+    --sidebar-accent: 145 60% 25%;
+    --sidebar-accent-foreground: 45 30% 96%;
+    --sidebar-border: 150 40% 22%;
+    --sidebar-ring: 145 80% 38%;
+    --sidebar-muted: 150 30% 35%;
+
+    /* Chart colors */
+    --chart-1: 150 50% 22%;
+    --chart-2: 145 80% 38%;
+    --chart-3: 145 70% 35%;
+    --chart-4: 45 90% 50%;
+    --chart-5: 0 70% 50%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "cv11", "ss01";
+  }
+
+  /* Custom scrollbar for professional look */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-muted;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-muted-foreground/30 rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground/50;
+  }
+}
+
+@layer components {
+  /* Stat card gradient overlays */
+  .stat-card-sales {
+    @apply bg-gradient-to-br from-primary/5 to-primary/10;
+  }
+
+  .stat-card-purchases {
+    @apply bg-gradient-to-br from-accent/5 to-accent/10;
+  }
+
+  .stat-card-inventory {
+    @apply bg-gradient-to-br from-warning/5 to-warning/10;
+  }
+
+  .stat-card-receivable {
+    @apply bg-gradient-to-br from-success/5 to-success/10;
+  }
+
+  .stat-card-payable {
+    @apply bg-gradient-to-br from-destructive/5 to-destructive/10;
+  }
+
+  /* Table row hover effects */
+  .table-row-hover {
+    @apply transition-colors hover:bg-muted/50;
+  }
+
+  /* Navigation link states */
+  .nav-link {
+    @apply flex items-center gap-3 px-3 py-2.5 rounded-lg text-sidebar-foreground/80 transition-all duration-200;
+  }
+
+  .nav-link:hover {
+    @apply bg-sidebar-accent text-sidebar-accent-foreground;
+  }
+
+  .nav-link-active {
+    @apply bg-sidebar-accent text-sidebar-accent-foreground font-medium;
+  }
+
+  /* Form field focus states */
+  .form-input-focus {
+    @apply focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all;
+  }
+
+  /* Page header styling */
+  .page-header {
+    @apply flex items-center justify-between pb-6 border-b border-border mb-6;
+  }
+
+  /* Data table container */
+  .data-table-container {
+    @apply bg-card rounded-xl border border-border shadow-sm overflow-hidden;
+  }
+
+  /* Amount displays */
+  .amount-positive {
+    @apply text-success font-medium;
+  }
+
+  .amount-negative {
+    @apply text-destructive font-medium;
+  }
+}
+
+/* Dark Mode: Neon Green + Black */
+.dark {
+  --background: 0 0% 5%;
+  /* --foreground: 120 100% 50%; */
+  --foreground: 0 0% 100%;
+  /* --primary: 120 100% 50%; */
+  --primary-foreground: 0 0% 100%;
+  --card: 0 0% 8%;
+  --card-foreground: 0 0% 100%;
+  /* --card-foreground: 120 100% 50%; */
+  --border: 120 40% 20%;
+  --muted: 0 0% 12%;
+  /* --muted-foreground: 120 40% 45%; */
+  --muted-foreground: 0 0% 75%;
+}

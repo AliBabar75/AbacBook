@@ -1,0 +1,11 @@
+# ignore all node modules anywhere
+node_modules/
+
+# env files
+.env
+
+# logs
+*.log
+
+# OS junk
+.DS_Store
