@@ -29,11 +29,15 @@ export default function Login() {
     try {
       // DATA COMES FROM CLIENT BACKEND API
       // TODO: Replace with actual API call
-      const response = await fetch('http://localhost:5000/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
+      const response = await fetch(
+  `${import.meta.env.VITE_API_URL}/auth/login`,
+  {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  }
+);
+
       const data = await response.json();
       if (!response.ok) throw new Error(data.message);
       localStorage.setItem('auth_token', data.token);
