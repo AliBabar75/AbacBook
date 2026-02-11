@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { PageHeader } from "@/components/common/PageHeader";
 import { DataTable } from "@/components/common/DataTable";
@@ -6,46 +6,93 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ClipboardList, Search, Filter, Eye, FileText } from "lucide-react";
+import api from "../../services/api.js";  
+type SaleRow = {
+  id: string;
+  date: string;
+  invoiceNo: string;
+  customer: string;
+  items: string;
+  type:string;
+qty:number;
+  total: number;
+  status: string;
+};
 
-/**
- * Sales List - Sales Module
- * 
- * DATA COMES FROM CLIENT BACKEND API
- * Expected API endpoint: GET /api/sales
- * Response: { sales: [{ id, date, customer, items, total, status }] }
- * 
- * NOTE: Do NOT calculate profit or COGS in UI.
- * All financial calculations are handled by the backend.
- */
+
 export default function SalesList() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
+  const [sales, setSales] = useState<SaleRow[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  // DATA COMES FROM CLIENT BACKEND API
-  // TODO: Fetch sales from API
-  // const { data: sales, loading } = useFetch('/api/sales');
-  const loading = false;
-  const sales: Record<string, unknown>[] = [];
+  // 🔗 FETCH SALES
+  useEffect(() => {
+    const fetchSales = async () => {
+      try {
+        setLoading(true);
+        const res = await api.get("/sales");
+
+        const formatted = res.data.map((sale: any) => ({
+          id: sale._id,
+          date: new Date(sale.date).toLocaleDateString(),
+          invoiceNo: sale.invoiceNo,
+          customer: sale.customerId?.name || "—",
+          qty: sale.items?.length || 0,
+           items:
+    sale.items && sale.items.length > 0
+      ? sale.items.map((i: any) => i.itemId?.name).join(", ")
+      : "—",
+      type:sale.items?.length > 0
+      ? [...new Set(sale.items.map((i: any) => i.itemId?.type))].join(", ")
+      : "—",
+          total: sale.totalAmount,
+          status: sale.status,
+        }));
+
+        setSales(formatted);
+      } catch (err) {
+        console.error("Failed to load sales", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSales();
+  }, []);
+
+  const filteredSales = sales.filter(
+    (s) =>
+      s.invoiceNo.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      s.customer.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const columns = [
     { key: "date", header: "Date" },
     { key: "invoiceNo", header: "Invoice No." },
     { key: "customer", header: "Customer" },
+    { key: "type", header: "Item Type" },
     { key: "items", header: "Items", className: "text-center" },
+    { key: "qty", header: "qty", className: "text-center" },
     { key: "total", header: "Total", className: "text-right" },
     {
       key: "status",
       header: "Status",
-      render: (row: Record<string, unknown>) => {
-        const status = row.status as string;
-        const variant = status === "paid" ? "default" : status === "partial" ? "secondary" : "outline";
-        return <Badge variant={variant}>{status || "—"}</Badge>;
+      render: (row: SaleRow) => {
+        const variant =
+          row.status === "PAID"
+            ? "default"
+            : row.status === "PARTIAL"
+            ? "secondary"
+            : "outline";
+
+        return <Badge variant={variant}>{row.status}</Badge>;
       },
     },
     {
       key: "actions",
       header: "",
-      render: (row: Record<string, unknown>) => (
+      render: (row: SaleRow) => (
         <div className="flex gap-1">
           <Button
             variant="ghost"
@@ -57,12 +104,12 @@ export default function SalesList() {
           >
             <Eye className="h-4 w-4" />
           </Button>
+
           <Button
             variant="ghost"
             size="sm"
             onClick={(e) => {
               e.stopPropagation();
-              // DATA COMES FROM CLIENT BACKEND API
               navigate(`/sales/${row.id}/invoice`);
             }}
           >
@@ -91,21 +138,21 @@ export default function SalesList() {
             placeholder="Search sales..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 form-input-focus"
+            className="pl-10"
           />
         </div>
+
         <Button variant="outline" className="gap-2">
           <Filter className="h-4 w-4" />
           Filter
         </Button>
       </div>
 
-      {/* DATA COMES FROM CLIENT BACKEND API */}
       <DataTable
         columns={columns}
-        data={sales}
+        data={filteredSales}
         loading={loading}
-        emptyMessage="No sales found. Data will be loaded from the backend API."
+        emptyMessage="No sales found"
         onRowClick={(row) => navigate(`/sales/${row.id}`)}
       />
     </div>

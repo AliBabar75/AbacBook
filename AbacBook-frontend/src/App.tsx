@@ -28,7 +28,10 @@ import InventoryClosing from "@/pages/reports/InventoryClosing";
 import AgingReports from "@/pages/reports/AgingReports";
 import NotFound from "@/pages/NotFound";
 import Shopify from "./pages/shopify";
-  
+import PurchaseReturn from "./pages/purchases/PurchaseReturn";
+import SalesReturn from "./pages/sales/SalesReturn";
+import Expenses from "./pages/Expenses";
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -39,7 +42,6 @@ const App = () => (
 
       <BrowserRouter>
         <Routes>
-
           {/* 🔓 Public Route */}
           <Route path="/login" element={<Login />} />
 
@@ -50,8 +52,14 @@ const App = () => (
               <Route path="/dashboard" element={<Dashboard />} />
 
               {/* Inventory */}
-              <Route path="/inventory/raw-materials" element={<RawMaterials />} />
-              <Route path="/inventory/finished-goods" element={<FinishedGoods />} />
+              <Route
+                path="/inventory/raw-materials"
+                element={<RawMaterials />}
+              />
+              <Route
+                path="/inventory/finished-goods"
+                element={<FinishedGoods />}
+              />
               <Route path="/inventory/stock-in" element={<StockIn />} />
               <Route path="/inventory/stock-out" element={<StockOut />} />
               <Route path="/inventory/conversion" element={<Conversion />} />
@@ -59,12 +67,13 @@ const App = () => (
               {/* Purchases */}
               <Route path="/purchases" element={<PurchaseList />} />
               <Route path="/purchases/new" element={<NewPurchase />} />
-
+              <Route path="/purchases/return" element={<PurchaseReturn />} />
               {/* Sales */}
               <Route path="/sales" element={<SalesList />} />
               <Route path="/sales/new" element={<NewSale />} />
               <Route path="/sales/:id/invoice" element={<Invoice />} />
-
+              <Route path="/sales/return" element={<SalesReturn />} />
+               <Route path="/expenses" element={<Expenses />} />
               {/* Parties */}
               <Route path="/parties/customers" element={<Customers />} />
               <Route path="/parties/suppliers" element={<Suppliers />} />
@@ -74,14 +83,16 @@ const App = () => (
               <Route path="/reports/trial-balance" element={<TrialBalance />} />
               <Route path="/reports/profit-loss" element={<ProfitLoss />} />
               <Route path="/reports/balance-sheet" element={<BalanceSheet />} />
-              <Route path="/reports/inventory-closing" element={<InventoryClosing />} />
+              <Route
+                path="/reports/inventory-closing"
+                element={<InventoryClosing />}
+              />
               <Route path="/reports/aging" element={<AgingReports />} />
             </Route>
           </Route>
 
           {/* ❌ 404 */}
           <Route path="*" element={<NotFound />} />
-
         </Routes>
       </BrowserRouter>
     </TooltipProvider>

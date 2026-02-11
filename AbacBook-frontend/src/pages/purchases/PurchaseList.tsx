@@ -7,22 +7,11 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ClipboardList, Search, Filter, Eye } from "lucide-react";
 import api from "../../services/api.js"
-/**
- * Purchase List - Purchases Module
- * 
- * DATA COMES FROM CLIENT BACKEND API
- * Expected API endpoint: GET /api/purchases
- * Response: { purchases: [{ id, date, supplier, items, total, status }] }
- */
+
 export default function PurchaseList() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
 
-  // DATA COMES FROM CLIENT BACKEND API
-  // TODO: Fetch purchases from API
-  // const { data: purchases, loading } = useFetch('/api/purchases');
-  // const loading = false;
-  // const purchases: Record<string, unknown>[] = [];
 const [purchases, setPurchases] = useState<Record<string, unknown>[]>([]);
 const [loading, setLoading] = useState(true);
 useEffect(() => {
@@ -36,6 +25,17 @@ useEffect(() => {
     { key: "date", header: "Date" },
     { key: "invoiceNo", header: "Invoice No." },
     { key: "supplier", header: "Supplier" },
+    {
+  key: "itemname",
+  header: "Purchase item",
+  render: (row: any) => {
+    if (Array.isArray(row.itemNames)) {
+      return row.itemNames.join(", ");
+    }
+    return row.itemname || "—";
+  },
+},
+
     { key: "items", header: "Items", className: "text-center" },
     { key: "total", header: "Total", className: "text-right" },
     {
@@ -56,8 +56,7 @@ useEffect(() => {
           size="sm"
           onClick={(e) => {
             e.stopPropagation();
-            // DATA COMES FROM CLIENT BACKEND API
-            // TODO: Navigate to purchase detail
+            
             navigate(`/purchases/${row.id}`);
           }}
         >
@@ -94,7 +93,6 @@ useEffect(() => {
         </Button>
       </div>
 
-      {/* DATA COMES FROM CLIENT BACKEND API */}
       <DataTable
         columns={columns}
         data={purchases}

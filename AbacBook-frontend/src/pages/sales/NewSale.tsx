@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import api from "@/services/api.js";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,20 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Receipt, Save, Loader2, Plus, Trash2, ArrowLeft } from "lucide-react";
-
-/**
- * New Sale - Sales Module
- * 
- * DATA COMES FROM CLIENT BACKEND API
- * Expected API endpoints:
- * - GET /api/parties/customers - List customers for selection
- * - GET /api/inventory/finished-goods - List items for sale
- * - POST /api/sales - Submit sale
- * 
- * Sale submission handled by backend accounting engine.
- * Do NOT calculate profit or COGS in UI.
- */
+import { Save, Loader2, Plus, Trash2, ArrowLeft } from "lucide-react";
 
 interface SaleItem {
   id: string;
@@ -32,31 +20,60 @@ interface SaleItem {
   quantity: string;
   rate: string;
 }
+interface Customer {
+  id: string;
+  name: string;
+}
 
 export default function NewSale() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState({
-    date: new Date().toISOString().split("T")[0],
-    invoiceNo: "",
-    customerId: "",
-    paymentTerms: "",
-    notes: "",
-  });
+
+  // ================= FORM =================
+ const [formData, setFormData] = useState({
+  date: new Date().toISOString().split("T")[0],
+  invoiceNo: "",
+  customerId: "",          // ✅ EMPTY STRING ONLY
+  paymentTerms: "",
+  notes: "",
+});
+
+
   const [items, setItems] = useState<SaleItem[]>([
     { id: "1", itemId: "", quantity: "", rate: "" },
   ]);
 
-  // DATA COMES FROM CLIENT BACKEND API
-  // TODO: Fetch customers from API
-  // const { data: customers } = useFetch('/api/parties/customers');
-  const customers: { id: string; name: string }[] = [];
+  // ================= DATA =================
+  // const [customers, setCustomers] = useState<{ _id: string; name: string }[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [finishedGoods, setFinishedGoods] = useState<{ id: string; name: string }[]>([]);
 
-  // DATA COMES FROM CLIENT BACKEND API
-  // TODO: Fetch finished goods from API
-  // const { data: finishedGoods } = useFetch('/api/inventory/finished-goods');
-  const finishedGoods: { id: string; name: string }[] = [];
+  // ================= LOAD CUSTOMERS =================
+ useEffect(() => {
+  api.get("/customers").then((res) => {
+    setCustomers(
+      res.data.map((c: any) => ({
+        id: String(c.id),
+        name: c.name,
+      }))
+    );
+  });
+}, []);
 
+  // ================= LOAD FINISHED GOODS =================
+  useEffect(() => {
+    
+    api.get("/items?type=FINISHED_GOOD").then((res) => {
+      setFinishedGoods(
+        res.data.map((i: any) => ({
+          id: String(i._id), // IMPORTANT: string
+          name: i.name,
+        }))
+      );
+    });
+  }, []);
+
+  // ================= ITEM HANDLERS =================
   const addItem = () => {
     setItems([...items, { id: Date.now().toString(), itemId: "", quantity: "", rate: "" }]);
   };
@@ -71,22 +88,30 @@ export default function NewSale() {
     setItems(items.map((item) => (item.id === id ? { ...item, [field]: value } : item)));
   };
 
+  // ================= SUBMIT =================
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.customerId || formData.customerId === "undefined") {
+  alert("Please select a customer");
+  
+  setLoading(false);
+  return;
+}
     setLoading(true);
 
     try {
-      // DATA COMES FROM CLIENT BACKEND API
-      // Sale submission handled by backend accounting engine
-      // Do NOT calculate profit or COGS here
-      // TODO: Replace with actual API call
-      // await fetch('/api/sales', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ ...formData, items }),
-      // });
+      await api.post("/sales", {
+        date: formData.date,
+        invoiceNo: formData.invoiceNo,
+        customerId: formData.customerId,
+        notes: formData.notes,
+        items: items.map((i) => ({
+          itemId: i.itemId,
+          quantity: Number(i.quantity),
+          rate: Number(i.rate),
+        })),
+      });
 
-      await new Promise((resolve) => setTimeout(resolve, 1000));
       navigate("/sales");
     } catch (error) {
       console.error("Sale creation failed:", error);
@@ -97,6 +122,7 @@ export default function NewSale() {
 
   return (
     <div>
+      {/* HEADER */}
       <div className="flex items-center gap-4 mb-6">
         <Button variant="ghost" size="icon" onClick={() => navigate("/sales")}>
           <ArrowLeft className="h-5 w-5" />
@@ -108,66 +134,63 @@ export default function NewSale() {
       </div>
 
       <form onSubmit={handleSubmit}>
-        {/* Header Section */}
+        {/* ================= SALE DETAILS ================= */}
         <div className="bg-card rounded-xl border border-border p-6 shadow-card mb-6">
           <h2 className="text-lg font-semibold mb-4">Sale Details</h2>
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="date">Date</Label>
+              <Label>Date</Label>
               <Input
-                id="date"
                 type="date"
                 value={formData.date}
                 onChange={(e) => setFormData({ ...formData, date: e.target.value })}
                 required
-                className="form-input-focus"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="invoiceNo">Invoice No.</Label>
+              <Label>Invoice No.</Label>
               <Input
-                id="invoiceNo"
-                placeholder="e.g., INV-001"
+                placeholder="e.g. INV-001"
                 value={formData.invoiceNo}
                 onChange={(e) => setFormData({ ...formData, invoiceNo: e.target.value })}
                 required
-                className="form-input-focus"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="customer">Customer</Label>
-              {/* DATA COMES FROM CLIENT BACKEND API */}
-              <Select
-                value={formData.customerId}
-                onValueChange={(value) => setFormData({ ...formData, customerId: value })}
-              >
-                <SelectTrigger className="form-input-focus">
-                  <SelectValue placeholder="Select customer" />
-                </SelectTrigger>
-                <SelectContent>
-                  {customers.map((customer) => (
-                    <SelectItem key={customer.id} value={customer.id}>
-                      {customer.name}
-                    </SelectItem>
-                  ))}
-                  {customers.length === 0 && (
-                    <div className="p-2 text-sm text-muted-foreground">
-                      Customers loaded from API
-                    </div>
-                  )}
-                </SelectContent>
-              </Select>
+              <Label>Customer</Label>
+  <Select
+  value={formData.customerId}
+  onValueChange={(v) => {
+    console.log("Selected customerId:", v);
+    setFormData((prev) => ({ ...prev, customerId: v }));
+  }}
+>
+  <SelectTrigger>
+    <SelectValue placeholder="Select customer" />
+  </SelectTrigger>
+
+  <SelectContent>
+    {customers.map((c) => (
+      <SelectItem key={c.id} value={c.id}>
+        {c.name}
+      </SelectItem>
+    ))}
+  </SelectContent>
+</Select>
+
+
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="paymentTerms">Payment Terms</Label>
+              <Label>Payment Terms</Label>
               <Select
                 value={formData.paymentTerms}
-                onValueChange={(value) => setFormData({ ...formData, paymentTerms: value })}
+                onValueChange={(v) => setFormData({ ...formData, paymentTerms: v })}
               >
-                <SelectTrigger className="form-input-focus">
+                <SelectTrigger>
                   <SelectValue placeholder="Select terms" />
                 </SelectTrigger>
                 <SelectContent>
@@ -182,7 +205,7 @@ export default function NewSale() {
           </div>
         </div>
 
-        {/* Items Section */}
+        {/* ================= ITEMS ================= */}
         <div className="bg-card rounded-xl border border-border p-6 shadow-card mb-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold">Items</h2>
@@ -192,7 +215,7 @@ export default function NewSale() {
             </Button>
           </div>
 
-          {/* Table Header */}
+          {/* TABLE HEADER */}
           <div className="hidden md:grid grid-cols-12 gap-4 pb-2 border-b text-sm font-medium text-muted-foreground">
             <div className="col-span-5">Item</div>
             <div className="col-span-2 text-right">Quantity</div>
@@ -201,20 +224,23 @@ export default function NewSale() {
             <div className="col-span-1"></div>
           </div>
 
-          {/* Items */}
+          {/* ITEMS ROWS */}
           <div className="space-y-4 mt-4">
             {items.map((item, index) => {
               const amount = Number(item.quantity || 0) * Number(item.rate || 0);
+
               return (
-                <div key={item.id} className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+                <div
+                  key={item.id}
+                  className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end"
+                >
                   <div className="md:col-span-5 space-y-2">
                     <Label className="md:hidden">Item {index + 1}</Label>
-                    {/* DATA COMES FROM CLIENT BACKEND API */}
                     <Select
                       value={item.itemId}
-                      onValueChange={(value) => updateItem(item.id, "itemId", value)}
+                      onValueChange={(v) => updateItem(item.id, "itemId", v)}
                     >
-                      <SelectTrigger className="form-input-focus">
+                      <SelectTrigger>
                         <SelectValue placeholder="Select product" />
                       </SelectTrigger>
                       <SelectContent>
@@ -223,41 +249,36 @@ export default function NewSale() {
                             {fg.name}
                           </SelectItem>
                         ))}
-                        {finishedGoods.length === 0 && (
-                          <div className="p-2 text-sm text-muted-foreground">
-                            Products loaded from API
-                          </div>
-                        )}
                       </SelectContent>
                     </Select>
                   </div>
+
                   <div className="md:col-span-2 space-y-2">
                     <Label className="md:hidden">Quantity</Label>
                     <Input
                       type="number"
-                      min="0"
-                      step="0.01"
                       placeholder="0"
+                      className="text-right"
                       value={item.quantity}
                       onChange={(e) => updateItem(item.id, "quantity", e.target.value)}
-                      className="form-input-focus text-right"
                     />
                   </div>
+
                   <div className="md:col-span-2 space-y-2">
                     <Label className="md:hidden">Rate</Label>
                     <Input
                       type="number"
-                      min="0"
-                      step="0.01"
                       placeholder="0.00"
+                      className="text-right"
                       value={item.rate}
                       onChange={(e) => updateItem(item.id, "rate", e.target.value)}
-                      className="form-input-focus text-right"
                     />
                   </div>
+
                   <div className="md:col-span-2 text-right font-medium py-2">
                     {amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
                   </div>
+
                   <div className="md:col-span-1 flex justify-end">
                     <Button
                       type="button"
@@ -265,7 +286,7 @@ export default function NewSale() {
                       size="icon"
                       onClick={() => removeItem(item.id)}
                       disabled={items.length === 1}
-                      className="text-destructive hover:text-destructive"
+                      className="text-destructive"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -276,31 +297,24 @@ export default function NewSale() {
           </div>
         </div>
 
-        {/* Notes Section */}
+        {/* ================= NOTES ================= */}
         <div className="bg-card rounded-xl border border-border p-6 shadow-card mb-6">
-          <div className="space-y-2">
-            <Label htmlFor="notes">Notes</Label>
-            <Textarea
-              id="notes"
-              placeholder="Additional notes for this sale..."
-              value={formData.notes}
-              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-              className="form-input-focus min-h-[100px]"
-            />
-          </div>
+          <Label>Notes</Label>
+          <Textarea
+            placeholder="Additional notes for this sale..."
+            value={formData.notes}
+            onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+            className="min-h-[100px]"
+          />
         </div>
 
-        {/* Actions */}
+        {/* ================= ACTIONS ================= */}
         <div className="flex justify-end gap-4">
           <Button type="button" variant="outline" onClick={() => navigate("/sales")}>
             Cancel
           </Button>
           <Button type="submit" disabled={loading} className="gap-2">
-            {loading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Save className="h-4 w-4" />
-            )}
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
             Save Sale
           </Button>
         </div>

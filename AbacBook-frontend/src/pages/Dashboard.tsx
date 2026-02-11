@@ -10,24 +10,36 @@ import {
   Wallet,
 } from "lucide-react";
 
-/**
- * Dashboard - Main Overview
- * 
- * DATA COMES FROM CLIENT BACKEND API
- * Expected API endpoints:
- * - GET /api/dashboard/summary - Returns totals for sales, purchases, inventory, etc.
- * - GET /api/dashboard/recent-transactions - Returns recent transaction list
- */
-export default function Dashboard() {
-  // DATA COMES FROM CLIENT BACKEND API
-  // TODO: Fetch dashboard summary from API
-  // const { data: summary, loading } = useFetch('/api/dashboard/summary');
-  const loading = false;
 
-  // DATA COMES FROM CLIENT BACKEND API
-  // TODO: Fetch recent transactions from API
-  // const { data: transactions } = useFetch('/api/dashboard/recent-transactions');
-  const recentTransactions: Record<string, unknown>[] = [];
+import { useEffect, useState } from "react";
+import api from "@/services/api.js"
+
+export default function Dashboard() {
+  
+const [loading, setLoading] = useState(true);
+
+const [stats, setStats] = useState<any>({});
+
+const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
+
+useEffect(() => {
+  async function load() {
+    try {
+      const response = await api.get("/dashboard");   // 🔥 small g
+      const data = response.data;                     // 🔥 axios structure
+
+      setStats(data.stats || {});
+      setRecentTransactions(data.recentTransactions || []);
+    } catch (err) {
+      console.error("Dashboard error:", err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  load();
+}, []);
+
 
   const transactionColumns = [
     { key: "date", header: "Date" },
@@ -50,7 +62,7 @@ export default function Dashboard() {
         {/* DATA COMES FROM CLIENT BACKEND API */}
         <StatCard
           title="Total Sales"
-          value="—"
+         value={stats.totalSales || "—"}
           subtitle="This month"
           icon={TrendingUp}
           variant="sales"
@@ -58,7 +70,7 @@ export default function Dashboard() {
         />
         <StatCard
           title="Total Purchases"
-          value="—"
+          value={stats.totalPurchases || "—"}
           subtitle="This month"
           icon={ShoppingCart}
           variant="purchases"
@@ -66,7 +78,7 @@ export default function Dashboard() {
         />
         <StatCard
           title="Inventory Value"
-          value="—"
+          value={stats.inventoryValue || "—"}
           subtitle="Current stock"
           icon={Package}
           variant="inventory"
@@ -74,7 +86,7 @@ export default function Dashboard() {
         />
         <StatCard
           title="Accounts Receivable"
-          value="—"
+          value={stats.receivable || "—"}
           subtitle="Outstanding"
           icon={CreditCard}
           variant="receivable"
@@ -82,7 +94,7 @@ export default function Dashboard() {
         />
         <StatCard
           title="Accounts Payable"
-          value="—"
+          value={stats.payable || "—"}
           subtitle="Outstanding"
           icon={Wallet}
           variant="payable"

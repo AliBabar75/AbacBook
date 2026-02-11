@@ -1,11 +1,11 @@
-import { useState } from "react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { DataTable } from "@/components/common/DataTable";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Scale, Download, Printer } from "lucide-react";
-
+import { useEffect, useState } from "react";
+import api from "@/services/api.js";
 /**
  * Trial Balance Report - Reports Module
  * 
@@ -23,8 +23,30 @@ export default function TrialBalance() {
   // DATA COMES FROM CLIENT BACKEND API
   // TODO: Fetch trial balance from API
   // const { data: report, loading } = useFetch(`/api/reports/trial-balance?asOfDate=${asOfDate}`);
-  const loading = false;
-  const accounts: Record<string, unknown>[] = [];
+const [loading, setLoading] = useState(true);
+const [accounts, setAccounts] = useState<any[]>([]);
+const [totals, setTotals] = useState({ debit: 0, credit: 0 });
+useEffect(() => {
+  async function load() {
+    try {
+      const res = await api.get("/reports/trial-balance", {
+        params: { date: asOfDate },
+      });
+
+      setAccounts(res.data.accounts || []);
+      setTotals({
+        debit: res.data.totalDebit || 0,
+        credit: res.data.totalCredit || 0,
+      });
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  load();
+}, [asOfDate]);
 
   const columns = [
     { key: "code", header: "Account Code" },
@@ -36,7 +58,9 @@ export default function TrialBalance() {
       render: (row: Record<string, unknown>) => {
         const debit = Number(row.debit || 0);
         return debit > 0 ? (
-          <span className="font-medium">{debit.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
+          <div className="text-right">
+  {totals.debit.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+</div>
         ) : "—";
       },
     },
@@ -47,7 +71,9 @@ export default function TrialBalance() {
       render: (row: Record<string, unknown>) => {
         const credit = Number(row.credit || 0);
         return credit > 0 ? (
-          <span className="font-medium">{credit.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
+        <div className="text-right">
+  {totals.credit.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+</div>
         ) : "—";
       },
     },

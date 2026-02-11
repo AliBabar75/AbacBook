@@ -21,6 +21,9 @@ import {
   Scale,
   ClipboardList,
   Clock,
+  Undo2,
+  Wallet,
+  Wallet2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Sun, Moon } from 'lucide-react';
@@ -52,6 +55,7 @@ const navigation: NavItem[] = [
     children: [
       { label: "Purchase List", path: "/purchases", icon: ClipboardList },
       { label: "New Purchase", path: "/purchases/new", icon: ShoppingCart },
+      { label: "Purchase Return", path: "/purchases/return", icon: Undo2 },
     ],
   },
   {
@@ -60,8 +64,16 @@ const navigation: NavItem[] = [
     children: [
       { label: "Sales List", path: "/sales", icon: ClipboardList },
       { label: "New Sale", path: "/sales/new", icon: Receipt },
+      { label: "Sales Return", path: "/sales/return", icon: Undo2 },
     ],
   },
+  {
+    label: "Expenses",
+    icon: Wallet2,
+    children: [
+      { label: "Expenses", path: "/expenses", icon: Wallet },
+
+    ]},
   {
     label: "Parties",
     icon: Users,

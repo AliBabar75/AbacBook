@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { TrendingUp, Download, Printer } from "lucide-react";
-
+import { useEffect } from "react";
+import api from "@/services/api";
 /**
  * Profit & Loss Report - Reports Module
  * 
@@ -28,7 +29,28 @@ export default function ProfitLoss() {
   // const { data: report, loading } = useFetch(
   //   `/api/reports/profit-loss?startDate=${filters.startDate}&endDate=${filters.endDate}`
   // );
-  const loading = false;
+ const [loading, setLoading] = useState(true);
+const [report, setReport] = useState<any>(null);
+useEffect(() => {
+  async function load() {
+    try {
+      const res = await api.get("/reports/profit-loss", {
+        params: {
+          start: filters.startDate,
+          end: filters.endDate,
+        },
+      });
+
+      setReport(res.data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  load();
+}, [filters]);
 
   const handlePrint = () => {
     window.print();
@@ -98,7 +120,10 @@ export default function ProfitLoss() {
               <div className="space-y-2 text-muted-foreground">
                 <div className="flex justify-between">
                   <span className="pl-4">Sales Revenue</span>
-                  <span>—</span>
+<span>
+                 {report?.revenue?.totalRevenue?.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+
+</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="pl-4">Other Income</span>
@@ -134,7 +159,10 @@ export default function ProfitLoss() {
               <div className="flex justify-between font-semibold mt-4 pt-2 border-t">
                 <span>Cost of Goods Sold</span>
                 {/* DATA COMES FROM CLIENT BACKEND API */}
-                <span>—</span>
+<span>
+                {report?.cogs?.totalCOGS?.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+
+</span>
               </div>
             </div>
 
@@ -143,7 +171,10 @@ export default function ProfitLoss() {
               <div className="flex justify-between text-lg font-bold">
                 <span>Gross Profit</span>
                 {/* DATA COMES FROM CLIENT BACKEND API */}
-                <span>—</span>
+<span>
+
+               {report?.grossProfit?.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+</span>
               </div>
             </div>
 
@@ -179,7 +210,7 @@ export default function ProfitLoss() {
             {/* Net Profit */}
             <div className="p-6 bg-primary/5">
               <div className="flex justify-between text-xl font-bold">
-                <span>Net Profit / (Loss)</span>
+                <span>{report?.netProfit?.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
                 {/* DATA COMES FROM CLIENT BACKEND API */}
                 <span className="text-primary">—</span>
               </div>

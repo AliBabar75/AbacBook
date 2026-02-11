@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { FileSpreadsheet, Download, Printer } from "lucide-react";
-
+import { useEffect } from "react";
+import api from "@/services/api";
 /**
  * Balance Sheet Report - Reports Module
  * 
@@ -22,7 +23,26 @@ export default function BalanceSheet() {
   // DATA COMES FROM CLIENT BACKEND API
   // TODO: Fetch balance sheet from API
   // const { data: report, loading } = useFetch(`/api/reports/balance-sheet?asOfDate=${asOfDate}`);
-  const loading = false;
+ const [loading, setLoading] = useState(true);
+const [report, setReport] = useState<any>(null);
+
+useEffect(() => {
+  async function load() {
+    try {
+      const res = await api.get("/reports/balance-sheet", {
+        params: { date: asOfDate },
+      });
+
+      setReport(res.data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  load();
+}, [asOfDate]);
 
   const handlePrint = () => {
     window.print();
@@ -89,15 +109,22 @@ export default function BalanceSheet() {
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground pl-2">Cash & Bank</span>
-                    <span>—</span>
+                   <span>
+  {report?.assets?.cash?.toLocaleString("en-US", { minimumFractionDigits: 2 }) || "—"}
+</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground pl-2">Accounts Receivable</span>
-                    <span>—</span>
+                   <span>
+  {report?.assets?.receivable?.toLocaleString("en-US", { minimumFractionDigits: 2 }) || "—"}
+</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground pl-2">Inventory</span>
-                    <span>—</span>
+                    <span>
+  {report?.assets?.inventory?.toLocaleString("en-US", { minimumFractionDigits: 2 }) || "—"}
+</span>
+
                   </div>
                 </div>
                 <div className="flex justify-between font-medium mt-3 pt-2 border-t text-sm">
@@ -131,7 +158,10 @@ export default function BalanceSheet() {
                 <div className="flex justify-between font-bold text-lg">
                   <span>Total Assets</span>
                   {/* DATA COMES FROM CLIENT BACKEND API */}
-                  <span className="text-primary">—</span>
+                  <span className="text-primary">
+  {report?.assets?.totalAssets?.toLocaleString("en-US", { minimumFractionDigits: 2 }) || "—"}
+</span>
+
                 </div>
               </div>
             </div>
@@ -159,7 +189,9 @@ export default function BalanceSheet() {
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground pl-2">Accounts Payable</span>
-                    <span>—</span>
+                   <span>
+  {report?.liabilities?.payable?.toLocaleString("en-US", { minimumFractionDigits: 2 }) || "—"}
+</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground pl-2">Accrued Expenses</span>
@@ -199,7 +231,9 @@ export default function BalanceSheet() {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground pl-2">Retained Earnings</span>
-                    <span>—</span>
+                    <span>
+  {report?.equity?.retainedEarnings?.toLocaleString("en-US", { minimumFractionDigits: 2 }) || "—"}
+</span>
                   </div>
                 </div>
                 <div className="flex justify-between font-medium mt-3 pt-2 border-t text-sm">
@@ -213,7 +247,10 @@ export default function BalanceSheet() {
                 <div className="flex justify-between font-bold text-lg">
                   <span>Total Liabilities & Equity</span>
                   {/* DATA COMES FROM CLIENT BACKEND API */}
-                  <span className="text-primary">—</span>
+                 <span className="text-primary">
+  {report?.equity?.totalEquity?.toLocaleString("en-US", { minimumFractionDigits: 2 }) || "—"}
+</span>
+
                 </div>
               </div>
             </div>
