@@ -1,30 +1,31 @@
-import { generateTrialBalance } from "../reports/trialBalance.service.js";
-import { generateProfitLoss } from "../reports/profitLoss.service.js";
-import { generateBalanceSheet } from "../reports/balanceSheet.service.js";
+import * as ReportService from "../services/report.service.js";
 
-export const trialBalance = async (req, res, next) => {
+export async function trialBalance(req, res) {
   try {
-    const data = await generateTrialBalance();
-    res.json({ success: true, data });
+    const { date } = req.query;
+    const data = await ReportService.getTrialBalance(date);
+    res.json(data);
   } catch (err) {
-    next(err);
+    res.status(500).json({ message: err.message });
   }
-};
+}
 
-export const profitLoss = async (req, res, next) => {
+export async function balanceSheet(req, res) {
   try {
-    const data = await generateProfitLoss();
-    res.json({ success: true, data });
+    const { date } = req.query;
+    const data = await ReportService.getBalanceSheet(date);
+    res.json(data);
   } catch (err) {
-    next(err);
+    res.status(500).json({ message: err.message });
   }
-};
+}
 
-export const balanceSheet = async (req, res, next) => {
+export async function profitLoss(req, res) {
   try {
-    const data = await generateBalanceSheet();
-    res.json({ success: true, data });
+    const { start, end } = req.query;
+    const data = await ReportService.getProfitLoss(start, end);
+    res.json(data);
   } catch (err) {
-    next(err);
+    res.status(500).json({ message: err.message });
   }
-};
+}

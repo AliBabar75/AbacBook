@@ -60,25 +60,15 @@ if (!cashAccount) {
     unitCost: item.rate,
   });
  await stockIn({
-  itemId: item.rawMaterialId,        // correct key
+  itemId: item.rawMaterialId,        
   quantity: item.quantity,
   unitCost: item.rate,
-  debitAccount: inventoryAccount._id, // ObjectId from DB
-  creditAccount: cashAccount._id,     // ObjectId from DB
+  debitAccount: inventoryAccount._id, //  from DB
+  creditAccount: cashAccount._id,     //  from DB
   userId,
+  reference: "PURCHASE",
 });
-    // await stockIn({
-    //   // itemId: item.rawMaterialId,
-    //   rawMaterialId: item.rawMaterialId,
-    //   item: item._id,
-    //   quantity: item.quantity,
-    //   unitCost: item.rate,
-    //   // debitAccount: INVENTORY_ACCOUNT,
-    //   // creditAccount: CASH_ACCOUNT,
-    //  debitAccount,
-    // creditAccount,
-    //   userId,
-    // });
+   
   }
 
   return purchase;
@@ -88,17 +78,29 @@ if (!cashAccount) {
 export const listPurchasesService = async ({ page = 1, limit = 20 }) => {
   const purchases = await Purchase.find()
     .populate("supplierId", "name")
+    .populate("items.rawMaterialId", "name") // 🔥 IMPORTANT
     .sort({ createdAt: -1 })
     .skip((page - 1) * limit)
-    .limit(limit);
+    .limit(limit)
+    .lean();
 
-  return purchases.map((p) => ({
-    id: p._id,
-    date: p.date,
-    invoiceNo: p.invoiceNo,
-    supplier: p.supplierId?.name || "",
-    items: p.items.length,
-    total: p.totalAmount,
-    status: p.status,
-  }));
+  return purchases.map((p) => {
+    const itemNames = p.items
+      .map(i => i.rawMaterialId?.name)
+      .filter(Boolean);
+
+    return {
+      id: p._id,
+      date: p.date,
+      invoiceNo: p.invoiceNo,
+      supplier: p.supplierId?.name || "—",
+
+      // ✅ frontend isi ko show karega
+      itemNames,
+
+      items: p.items.length,
+      total: p.totalAmount,
+      status: p.status,
+    };
+  });
 };

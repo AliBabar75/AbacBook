@@ -9,6 +9,8 @@ export const stockIn = async ({
   unitCost,
   debitAccount,
   creditAccount,
+  reference = "STOCK IN",
+  refId = null,
   userId,
 }) => {
   if (
@@ -64,7 +66,8 @@ export const stockIn = async ({
     totalAmount: newValue,
     debitAccount,
     creditAccount,
-    reference: "PURCHASE",
+      reference,     // STOCK_IN / PURCHASE
+  refId,         // optional
     createdBy: userId || null,
   });
 

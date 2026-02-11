@@ -1,30 +1,22 @@
-
+// models/customer.model.js
 import mongoose from "mongoose";
 
-const supplierSchema = new mongoose.Schema(
+const customerSchema = new mongoose.Schema(
   {
     code: {
       type: String,
+      required: true,
       unique: true,
-      sparse: true,
     },
-    accountId: {
-  type: mongoose.Schema.Types.ObjectId,
-  ref: "Account",
-},
-
     name: {
       type: String,
       required: true,
-      trim: true,
     },
-
-    phone: {
+    email: {
       type: String,
       default: "",
     },
-
-    email: {
+    phone: {
       type: String,
       default: "",
     },
@@ -36,16 +28,15 @@ const supplierSchema = new mongoose.Schema(
 
     balance: {
       type: Number,
-      default: 0,
+      default: 0, // derived via ledger later
+    },
+
+    isActive: {
+      type: Boolean,
+      default: true,
     },
   },
   { timestamps: true }
 );
 
-supplierSchema.pre("save", async function () {
-  if (this.isNew) {
-    this.balance = this.openingBalance || 0;
-  }
-});
-
-export default mongoose.model("Supplier", supplierSchema);
+export default mongoose.model("Customer", customerSchema);
