@@ -6,23 +6,9 @@ import { Input } from "@/components/ui/input";
 import { FileSpreadsheet, Download, Printer } from "lucide-react";
 import { useEffect } from "react";
 import api from "@/services/api";
-/**
- * Balance Sheet Report - Reports Module
- * 
- * DATA COMES FROM CLIENT BACKEND API
- * Expected API endpoint: GET /api/reports/balance-sheet
- * Query params: ?asOfDate=
- * Response: { assets, liabilities, equity }
- * 
- * This is a read-only report.
- * All calculations are done by the backend accounting engine.
- */
+
 export default function BalanceSheet() {
   const [asOfDate, setAsOfDate] = useState(new Date().toISOString().split("T")[0]);
-
-  // DATA COMES FROM CLIENT BACKEND API
-  // TODO: Fetch balance sheet from API
-  // const { data: report, loading } = useFetch(`/api/reports/balance-sheet?asOfDate=${asOfDate}`);
  const [loading, setLoading] = useState(true);
 const [report, setReport] = useState<any>(null);
 
@@ -110,19 +96,19 @@ useEffect(() => {
                   <div className="flex justify-between">
                     <span className="text-muted-foreground pl-2">Cash & Bank</span>
                    <span>
-  {report?.assets?.cash?.toLocaleString("en-US", { minimumFractionDigits: 2 }) || "—"}
+  {report?.assets?.cash?.toLocaleString("en-US", { minimumFractionDigits: 2 }) ?? 0 }
 </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground pl-2">Accounts Receivable</span>
                    <span>
-  {report?.assets?.receivable?.toLocaleString("en-US", { minimumFractionDigits: 2 }) || "—"}
+  {report?.assets?.receivable?.toLocaleString("en-US", { minimumFractionDigits: 2 }) ?? 0}
 </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground pl-2">Inventory</span>
                     <span>
-  {report?.assets?.inventory?.toLocaleString("en-US", { minimumFractionDigits: 2 }) || "—"}
+  {report?.assets?.inventory?.toLocaleString("en-US", { minimumFractionDigits: 2 }) ?? 0}
 </span>
 
                   </div>
@@ -159,7 +145,7 @@ useEffect(() => {
                   <span>Total Assets</span>
                   {/* DATA COMES FROM CLIENT BACKEND API */}
                   <span className="text-primary">
-  {report?.assets?.totalAssets?.toLocaleString("en-US", { minimumFractionDigits: 2 }) || "—"}
+  {report?.assets?.totalAssets?.toLocaleString("en-US", { minimumFractionDigits: 2 }) ?? 0}
 </span>
 
                 </div>
@@ -190,7 +176,7 @@ useEffect(() => {
                   <div className="flex justify-between">
                     <span className="text-muted-foreground pl-2">Accounts Payable</span>
                    <span>
-  {report?.liabilities?.payable?.toLocaleString("en-US", { minimumFractionDigits: 2 }) || "—"}
+  {report?.liabilities?.payable?.toLocaleString("en-US", { minimumFractionDigits: 2 }) ?? 0}
 </span>
                   </div>
                   <div className="flex justify-between">
@@ -232,7 +218,7 @@ useEffect(() => {
                   <div className="flex justify-between">
                     <span className="text-muted-foreground pl-2">Retained Earnings</span>
                     <span>
-  {report?.equity?.retainedEarnings?.toLocaleString("en-US", { minimumFractionDigits: 2 }) || "—"}
+  {report?.equity?.retainedEarnings?.toLocaleString("en-US", { minimumFractionDigits: 2 }) ?? 0}
 </span>
                   </div>
                 </div>
@@ -248,7 +234,7 @@ useEffect(() => {
                   <span>Total Liabilities & Equity</span>
                   {/* DATA COMES FROM CLIENT BACKEND API */}
                  <span className="text-primary">
-  {report?.equity?.totalEquity?.toLocaleString("en-US", { minimumFractionDigits: 2 }) || "—"}
+  {report?.equity?.totalEquity?.toLocaleString("en-US", { minimumFractionDigits: 2 }) ?? 0}
 </span>
 
                 </div>

@@ -6,74 +6,63 @@ import { Input } from "@/components/ui/input";
 import { Scale, Download, Printer } from "lucide-react";
 import { useEffect, useState } from "react";
 import api from "@/services/api.js";
-/**
- * Trial Balance Report - Reports Module
- * 
- * DATA COMES FROM CLIENT BACKEND API
- * Expected API endpoint: GET /api/reports/trial-balance
- * Query params: ?asOfDate=
- * Response: { accounts: [{ code, name, debit, credit }], totals: { debit, credit } }
- * 
- * This is a read-only report.
- * All calculations are done by the backend accounting engine.
- */
+
 export default function TrialBalance() {
-  const [asOfDate, setAsOfDate] = useState(new Date().toISOString().split("T")[0]);
+  const [asOfDate, setAsOfDate] = useState(
+    new Date().toISOString().split("T")[0]
+  );
+  const [loading, setLoading] = useState(true);
+  const [accounts, setAccounts] = useState<any[]>([]);
+  const [totals, setTotals] = useState({ debit: 0, credit: 0 });
 
-  // DATA COMES FROM CLIENT BACKEND API
-  // TODO: Fetch trial balance from API
-  // const { data: report, loading } = useFetch(`/api/reports/trial-balance?asOfDate=${asOfDate}`);
-const [loading, setLoading] = useState(true);
-const [accounts, setAccounts] = useState<any[]>([]);
-const [totals, setTotals] = useState({ debit: 0, credit: 0 });
-useEffect(() => {
-  async function load() {
-    try {
-      const res = await api.get("/reports/trial-balance", {
-        params: { date: asOfDate },
-      });
+  useEffect(() => {
+    async function load() {
+      try {
+        const res = await api.get("/reports/trial-balance", {
+          params: { date: asOfDate },
+        });
 
-      setAccounts(res.data.accounts || []);
-      setTotals({
-        debit: res.data.totalDebit || 0,
-        credit: res.data.totalCredit || 0,
-      });
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
+        setAccounts(res.data.accounts || []);
+        setTotals({
+          debit: res.data.totalDebit || 0,
+          credit: res.data.totalCredit || 0,
+        });
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
     }
-  }
 
-  load();
-}, [asOfDate]);
+    load();
+  }, [asOfDate]);
 
   const columns = [
     { key: "code", header: "Account Code" },
     { key: "name", header: "Account Name" },
-    { 
-      key: "debit", 
-      header: "Debit", 
+    {
+      key: "debit",
+      header: "Debit",
       className: "text-right",
       render: (row: Record<string, unknown>) => {
         const debit = Number(row.debit || 0);
         return debit > 0 ? (
           <div className="text-right">
-  {totals.debit.toLocaleString("en-US", { minimumFractionDigits: 2 })}
-</div>
+            {debit.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+          </div>
         ) : "—";
       },
     },
-    { 
-      key: "credit", 
-      header: "Credit", 
+    {
+      key: "credit",
+      header: "Credit",
       className: "text-right",
       render: (row: Record<string, unknown>) => {
         const credit = Number(row.credit || 0);
         return credit > 0 ? (
-        <div className="text-right">
-  {totals.credit.toLocaleString("en-US", { minimumFractionDigits: 2 })}
-</div>
+          <div className="text-right">
+            {credit.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+          </div>
         ) : "—";
       },
     },
@@ -83,11 +72,7 @@ useEffect(() => {
     window.print();
   };
 
-  const handleExport = () => {
-    // DATA COMES FROM CLIENT BACKEND API
-    // TODO: Export report from API
-    // window.open(`/api/reports/trial-balance/export?asOfDate=${asOfDate}&format=pdf`, '_blank');
-  };
+  const handleExport = () => {};
 
   return (
     <div>
@@ -123,7 +108,6 @@ useEffect(() => {
       </div>
 
       {/* Report Table */}
-      {/* DATA COMES FROM CLIENT BACKEND API */}
       <DataTable
         columns={columns}
         data={accounts}
@@ -135,9 +119,16 @@ useEffect(() => {
       <div className="bg-card rounded-xl border border-border p-4 shadow-card mt-4">
         <div className="grid grid-cols-4 gap-4 font-semibold">
           <div className="col-span-2 text-right">Total</div>
-          {/* DATA COMES FROM CLIENT BACKEND API */}
-          <div className="text-right">—</div>
-          <div className="text-right">—</div>
+          <div className="text-right">
+            {totals.debit.toLocaleString("en-US", {
+              minimumFractionDigits: 2,
+            })}
+          </div>
+          <div className="text-right">
+            {totals.credit.toLocaleString("en-US", {
+              minimumFractionDigits: 2,
+            })}
+          </div>
         </div>
       </div>
     </div>

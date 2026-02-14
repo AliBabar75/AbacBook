@@ -6,29 +6,14 @@ import { Input } from "@/components/ui/input";
 import { TrendingUp, Download, Printer } from "lucide-react";
 import { useEffect } from "react";
 import api from "@/services/api";
-/**
- * Profit & Loss Report - Reports Module
- * 
- * DATA COMES FROM CLIENT BACKEND API
- * Expected API endpoint: GET /api/reports/profit-loss
- * Query params: ?startDate=&endDate=
- * Response: { revenue, costOfSales, grossProfit, expenses, netProfit }
- * 
- * This is a read-only report.
- * All calculations are done by the backend accounting engine.
- * Do NOT calculate profit or COGS in UI.
- */
+
 export default function ProfitLoss() {
   const [filters, setFilters] = useState({
     startDate: new Date(new Date().getFullYear(), 0, 1).toISOString().split("T")[0],
     endDate: new Date().toISOString().split("T")[0],
   });
 
-  // DATA COMES FROM CLIENT BACKEND API
-  // TODO: Fetch P&L report from API
-  // const { data: report, loading } = useFetch(
-  //   `/api/reports/profit-loss?startDate=${filters.startDate}&endDate=${filters.endDate}`
-  // );
+
  const [loading, setLoading] = useState(true);
 const [report, setReport] = useState<any>(null);
 useEffect(() => {
@@ -121,19 +106,22 @@ useEffect(() => {
                 <div className="flex justify-between">
                   <span className="pl-4">Sales Revenue</span>
 <span>
-                 {report?.revenue?.totalRevenue?.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                {report?.revenue?.sales?.toLocaleString("en-US", { minimumFractionDigits: 2 }) || "0.00"}
 
 </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="pl-4">Other Income</span>
-                  <span>—</span>
+                  <span className="pl-4">Sales Returns</span>
+                  <span>
+  {report?.revenue?.returns?.toLocaleString("en-US", { minimumFractionDigits: 2 }) || "0.00"}
+</span>
                 </div>
               </div>
               <div className="flex justify-between font-semibold mt-4 pt-2 border-t">
                 <span>Total Revenue</span>
-                {/* DATA COMES FROM CLIENT BACKEND API */}
-                <span>—</span>
+                <span>
+  {report?.revenue?.netRevenue?.toLocaleString("en-US", { minimumFractionDigits: 2 }) || "0.00"}
+</span>
               </div>
             </div>
 
@@ -145,22 +133,30 @@ useEffect(() => {
               <div className="space-y-2 text-muted-foreground">
                 <div className="flex justify-between">
                   <span className="pl-4">Opening Inventory</span>
-                  <span>—</span>
+                  <span>
+  {report?.costOfSales?.openingInventory?.toLocaleString("en-US", { minimumFractionDigits: 2 }) || "—"}
+</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="pl-4">Purchases</span>
-                  <span>—</span>
+                  <span>
+  {report?.costOfSales?.purchases?.toLocaleString("en-US", { minimumFractionDigits: 2 }) || "—"}
+</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="pl-4">Less: Closing Inventory</span>
-                  <span>—</span>
+                 <span>
+  {report?.costOfSales?.closingInventory?.toLocaleString("en-US", { minimumFractionDigits: 2 }) || "—"}
+</span>
                 </div>
               </div>
               <div className="flex justify-between font-semibold mt-4 pt-2 border-t">
                 <span>Cost of Goods Sold</span>
                 {/* DATA COMES FROM CLIENT BACKEND API */}
 <span>
-                {report?.cogs?.totalCOGS?.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+{report?.costOfSales?.costOfGoodsSold?.toLocaleString("en-US", { minimumFractionDigits: 2 }) || "0.00"}
+
+
 
 </span>
               </div>
@@ -185,34 +181,45 @@ useEffect(() => {
               <div className="space-y-2 text-muted-foreground">
                 <div className="flex justify-between">
                   <span className="pl-4">Salaries & Wages</span>
-                  <span>—</span>
+                  <span>
+  {report?.expenses?.salaries?.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="pl-4">Rent</span>
-                  <span>—</span>
+                  <span>
+  {report?.expenses?.rent?.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="pl-4">Utilities</span>
-                  <span>—</span>
+                  <span>
+  {report?.expenses?.utilities?.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="pl-4">Other Expenses</span>
-                  <span>—</span>
+                  <span>
+  {report?.expenses?.other?.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+</span>
                 </div>
               </div>
               <div className="flex justify-between font-semibold mt-4 pt-2 border-t">
                 <span>Total Operating Expenses</span>
                 {/* DATA COMES FROM CLIENT BACKEND API */}
-                <span>—</span>
+                <span>
+  {report?.expenses?.totalExpenses?.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+</span>
               </div>
             </div>
 
             {/* Net Profit */}
             <div className="p-6 bg-primary/5">
               <div className="flex justify-between text-xl font-bold">
-                <span>{report?.netProfit?.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
                 {/* DATA COMES FROM CLIENT BACKEND API */}
-                <span className="text-primary">—</span>
+                <span>
+</span>
+                <span className="text-primary">{report?.netProfit?.toLocaleString("en-US", { minimumFractionDigits: 2 }) || "0.00"}</span>
               </div>
             </div>
           </div>

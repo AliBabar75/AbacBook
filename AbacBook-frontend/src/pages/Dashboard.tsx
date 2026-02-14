@@ -62,7 +62,7 @@ useEffect(() => {
         {/* DATA COMES FROM CLIENT BACKEND API */}
         <StatCard
           title="Total Sales"
-         value={stats.totalSales || "—"}
+         value={stats.totalSales ?? 0}
           subtitle="This month"
           icon={TrendingUp}
           variant="sales"
@@ -70,7 +70,7 @@ useEffect(() => {
         />
         <StatCard
           title="Total Purchases"
-          value={stats.totalPurchases || "—"}
+          value={stats.totalPurchases ?? 0}
           subtitle="This month"
           icon={ShoppingCart}
           variant="purchases"
@@ -78,7 +78,7 @@ useEffect(() => {
         />
         <StatCard
           title="Inventory Value"
-          value={stats.inventoryValue || "—"}
+          value={stats.inventoryValue ?? 0}
           subtitle="Current stock"
           icon={Package}
           variant="inventory"
@@ -86,7 +86,7 @@ useEffect(() => {
         />
         <StatCard
           title="Accounts Receivable"
-          value={stats.receivable || "—"}
+          value={stats.receivable ?? 0}
           subtitle="Outstanding"
           icon={CreditCard}
           variant="receivable"
@@ -94,7 +94,7 @@ useEffect(() => {
         />
         <StatCard
           title="Accounts Payable"
-          value={stats.payable || "—"}
+          value={stats.payable ?? 0}
           subtitle="Outstanding"
           icon={Wallet}
           variant="payable"
