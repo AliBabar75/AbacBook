@@ -1,46 +1,69 @@
-// services/invoice.service.js
-import Invoice from "../models/invoice.model.js";
-import Customer from "../models/customer.model.js";
-import PartyLedger from "../models/partyLedger.model.js";
+import Sale from "../modules/sale.model.js";
+import SaleItem from "../modules/saleItem.model.js";
+import Customer from "../modules/customer.model.js";
+import Item from "../modules/item.model.js";
 
-export const postInvoice = async (invoiceData) => {
-  const {
-    customerId,
+// =======================================================
+// GET SALE INVOICE
+// =======================================================
+
+export const getSaleInvoice = async (saleId) => {
+  if (!saleId) throw new Error("Sale ID required");
+
+  const sale = await Sale.findById(saleId).lean();
+  if (!sale) throw new Error("Sale not found");
+
+  const customer = await Customer.findById(sale.customerId).lean();
+  if (!customer) throw new Error("Customer not found");
+
+  const saleItems = await SaleItem.find({ saleId: sale._id })
+    .populate("itemId", "name unit")
+    .lean();
+
+  const items = saleItems.map((row) => ({
+    name: row.itemId?.name || "Item",
+    quantity: row.quantity,
+    rate: row.rate,
+    amount: row.amount,
+  }));
+
+  const subtotal = sale.totalAmount;
+  const tax = 0; // future tax implementation
+  const total = subtotal;
+
+  const paid = sale.totalPaid || 0;
+  const balance = total - paid;
+
+  return {
+    
+    // HARDCODED COMPANY INFO
+    
+    company: {
+      name: "AbacBook Pvt Ltd", //  replace with Company collection
+      address: "Your Company Address Here",
+      phone: "0300-0000000",
+      email: "info@abacbook.com",
+    },
+
+    invoiceNo: sale.invoiceNo,
+    date: sale.date,
+
+    customer: {
+      name: customer.name,
+      phone: customer.phone || "",
+      email: customer.email || "",
+      address: customer.address || "", // optional (not required)
+    },
+
     items,
-    totalAmount,
-  } = invoiceData;
 
-  // 1️⃣ Invoice create
-  const invoice = await Invoice.create({
-    customerId,
-    items,
-    totalAmount,
-    status: "POSTED",
-  });
+    subtotal,
+    tax,
+    total,
+    paid,
+    balance,
 
-  // 2️⃣ Customer ledger entry (SALE)
-  const lastLedger = await PartyLedger.findOne({
-    partyId: customerId,
-    partyType: "customer",
-  }).sort({ createdAt: -1 });
-
-  const previousBalance = lastLedger?.balanceAfter || 0;
-  const newBalance = previousBalance + totalAmount;
-
-  await PartyLedger.create({
-    partyId: customerId,
-    partyType: "customer",
-    refType: "SALE",
-    refId: invoice._id,
-    debit: totalAmount,
-    credit: 0,
-    balanceAfter: newBalance,
-  });
-
-  // 3️⃣ Customer balance update
-  await Customer.findByIdAndUpdate(customerId, {
-    balance: newBalance,
-  });
-
-  return invoice;
+    notes: sale.notes || "",
+    status: sale.status,
+  };
 };

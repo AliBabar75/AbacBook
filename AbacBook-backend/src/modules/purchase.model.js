@@ -29,6 +29,14 @@ const purchaseSchema = new mongoose.Schema(
       enum: ["unpaid", "partial", "paid"],
       default: "unpaid",
     },
+    totalPaid: {
+  type: Number,
+  default: 0,
+},
+totalReturned: {
+  type: Number,
+  default: 0,
+},
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",

@@ -128,3 +128,172 @@ export const getSales = async () => {
 
   return sales;
 };
+export const receiveSalePayment = async ({
+  saleId,
+  amount,
+  paymentMethod,
+  date,
+}) => {
+  if (!saleId || !amount)
+    throw new Error("Sale ID and amount required");
+
+  if (amount <= 0)
+    throw new Error("Invalid payment amount");
+
+  const sale = await Sale.findById(saleId);
+  if (!sale) throw new Error("Sale not found");
+
+  const remaining = sale.totalAmount - (sale.totalPaid || 0);
+
+  if (amount > remaining)
+    throw new Error("Payment exceeds remaining balance");
+
+  // ===============================
+  // ACCOUNTS
+  // ===============================
+
+  const arAccount = await Account.findOne({ name: "Accounts Receivable" });
+  if (!arAccount) throw new Error("Accounts Receivable missing");
+
+  let cashAccount;
+
+  if (paymentMethod === "cash") {
+    cashAccount = await Account.findOne({ name: "Cash" });
+  } else if (
+    paymentMethod === "bank" ||
+    paymentMethod === "card" ||
+    paymentMethod === "cheque"
+  ) {
+    cashAccount = await Account.findOne({ name: "Bank" });
+  }
+
+  if (!cashAccount)
+    throw new Error("Cash/Bank account missing");
+
+  // ===============================
+  // LEDGER ENTRY
+  // ===============================
+
+  await Ledger.create({
+    description: "Sale Payment Received",
+    date,
+    debitAccount: cashAccount._id,
+    creditAccount: arAccount._id,
+    amount,
+  });
+
+  // ===============================
+  // PARTY LEDGER
+  // ===============================
+
+  const lastLedger = await PartyLedger.findOne({
+    partyId: sale.customerId,
+    partyType: "customer",
+  }).sort({ createdAt: -1 });
+
+  const previousBalance = lastLedger?.balanceAfter || 0;
+  const newBalance = previousBalance - amount;
+
+  await PartyLedger.create({
+    partyId: sale.customerId,
+    partyType: "customer",
+    refType: "SALE_PAYMENT",
+    refId: sale._id,
+    debit: 0,
+    credit: amount,
+    balanceAfter: newBalance,
+  });
+
+  // ===============================
+  // UPDATE SALE STATUS
+  // ===============================
+
+  sale.totalPaid = (sale.totalPaid || 0) + amount;
+
+  if (sale.totalPaid === sale.totalAmount) {
+    sale.status = "PAID";
+  } else {
+    sale.status = "PARTIAL";
+  }
+
+  await sale.save();
+
+  return {
+    success: true,
+    message: "Payment received successfully",
+  };
+};
+
+
+export const refundSalePayment = async ({
+  saleId,
+  amount,
+  paymentMethod,
+  date,
+}) => {
+  
+const sale = await Sale.findById(saleId);
+
+  if (!sale) throw new Error("Sale not found");
+
+  if (amount <= 0) throw new Error("Invalid refund amount");
+
+  const arAccount = await Account.findOne({ name: "Accounts Receivable" });
+  const cashAccount =
+    paymentMethod === "cash"
+      ? await Account.findOne({ name: "Cash" })
+      : await Account.findOne({ name: "Bank" });
+
+  if (!arAccount || !cashAccount)
+    throw new Error("Required accounts missing");
+
+  // 🔹 Ledger Entry (Refund)
+  await Ledger.create({
+    description: "Sales Refund",
+    date,
+    debitAccount: arAccount._id,
+    creditAccount: cashAccount._id,
+    amount,
+  });
+
+  // 🔹 Party Ledger Update
+  const lastLedger = await PartyLedger.findOne({
+    partyId: sale.customerId,
+    partyType: "customer",
+  }).sort({ createdAt: -1 });
+
+  const previousBalance = lastLedger?.balanceAfter || 0;
+  const newBalance = previousBalance + amount;
+
+  await PartyLedger.create({
+    partyId: sale.customerId,
+    partyType: "customer",
+    refType: "SALE_REFUND",
+    refId: sale._id,
+    debit: amount,
+    credit: 0,
+    balanceAfter: newBalance,
+    
+  });
+
+  // 🔹 Update Sale Paid
+  sale.totalPaid = (sale.totalPaid || 0) - amount;
+
+  const netSale =
+    sale.totalAmount - (sale.totalReturned || 0);
+
+  const outstanding =
+    netSale - (sale.totalPaid || 0);
+
+  if (outstanding <= 0) {
+    sale.status = "PAID";
+  } else if ((sale.totalPaid || 0) > 0) {
+    sale.status = "PARTIAL";
+  } else {
+    sale.status = "UNPAID";
+  }
+
+  await sale.save();
+
+  return { message: "Refund successful" };
+};

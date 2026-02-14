@@ -16,12 +16,13 @@ import purchaseReturnRoutes from "./routes/purchaseReturn.routes.js";
 import salesReturnRoutes from "./routes/salesReturn.routes.js";
 import dashboardRoutes from "./routes/dashboard.routes.js";
 import expenseRoutes from "./routes/expense.routes.js";
-
+import openingBalanceRoutes from "./routes/openingBalance.routes.js";
+import agingRoutes from "./routes/aging.routes.js";
+import invoiceRoutes from "./routes/invoice.routes.js";
 
 const app = express();
 app.use(cors());
 app.use(express.json());
-
 app.get("/health", (req, res) => {
   res.json({ status: "chalgaya ree baba", message: "boom up" });
 });
@@ -33,15 +34,17 @@ app.use("/api/inventory", inventoryRoutes);
 app.use("/api/accounts", accountRoutes);
 app.use("/api/ledger", ledgerRoutes);
 app.use("/api/reports", reportRoutes);
+app.use("/api/reports/aging", agingRoutes);
 app.use("/api/recipe", recipeRoutes);
 app.use("/api/suppliers", supplierRoutes);
 app.use("/api/purchases", purchaseRoutes);
 app.use("/api/customers", customerRoutes);
 app.use("/api/sales", saleRoutes);
+app.use("/api/sales", invoiceRoutes);
 app.use("/api/purchase-returns", purchaseReturnRoutes);
 app.use("/api/sales-returns", salesReturnRoutes);
 app.use("/api/expenses", expenseRoutes);
-
+app.use("/api/opening-balance", openingBalanceRoutes);
 
 app.use(errorHandler);
 

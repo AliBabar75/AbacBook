@@ -91,6 +91,22 @@ export const createPurchaseReturnService = async ({
     credit: 0,
     balanceAfter: newBalance,
   });
+purchase.totalReturned =
+    (purchase.totalReturned || 0) + totalAmount;
 
+  const outstanding =
+    purchase.totalAmount -
+    (purchase.totalPaid || 0) -
+    (purchase.totalReturned || 0);
+
+  if (outstanding <= 0) {
+    purchase.status = "paid";
+  } else if ((purchase.totalPaid || 0) > 0) {
+    purchase.status = "partial";
+  } else {
+    purchase.status = "unpaid";
+  }
+
+  await purchase.save();
   return returnDoc;
 };

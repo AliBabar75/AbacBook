@@ -3,7 +3,7 @@ import { stockIn } from "./inventory.service.js";
 import Account from "../modules/account.model.js";
 import Supplier from "../modules/supplier.model.js";
 import PartyLedger from "../modules/partyLedger.model.js";
-
+import Ledger from "../modules/ledger.model.js";
 export const createPurchaseService = async ({
   date,
   invoiceNo,
@@ -109,4 +109,68 @@ export const listPurchasesService = async ({ page = 1, limit = 20 }) => {
     total: p.totalAmount,
     status: p.status,
   }));
+};
+export const payPurchaseService = async ({
+  purchaseId,
+  amount,
+  paymentMethod,
+  date,
+}) => {
+  const purchase = await Purchase.findById(purchaseId);
+  if (!purchase) throw new Error("Purchase not found");
+
+  if (amount <= 0) throw new Error("Invalid payment amount");
+
+  const apAccount = await Account.findOne({ name: "Accounts Payable" });
+
+  const paymentAccount =
+    paymentMethod === "cash"
+      ? await Account.findOne({ name: "Cash" })
+      : await Account.findOne({ name: "Bank" });
+
+  if (!apAccount || !paymentAccount)
+    throw new Error("Required accounts missing");
+
+  // 🔹 Ledger Entry
+  await Ledger.create({
+    description: "Purchase Payment",
+    date,
+    debitAccount: apAccount._id,
+    creditAccount: paymentAccount._id,
+    amount,
+  });
+
+  // 🔹 Party Ledger Update
+  const lastLedger = await PartyLedger.findOne({
+    partyId: purchase.supplierId,
+    partyType: "supplier",
+  }).sort({ createdAt: -1 });
+
+  const previousBalance = lastLedger?.balanceAfter || 0;
+  const newBalance = previousBalance + amount;
+
+  await PartyLedger.create({
+    partyId: purchase.supplierId,
+    partyType: "supplier",
+    refType: "PURCHASE_PAYMENT",
+    refId: purchase._id,
+    debit: amount,
+    credit: 0,
+    balanceAfter: newBalance,
+  });
+
+  // 🔹 Update Purchase Status
+  const totalPaid = (purchase.totalPaid || 0) + amount;
+
+  purchase.totalPaid = totalPaid;
+
+  if (totalPaid >= purchase.totalAmount) {
+    purchase.status = "paid";
+  } else if (totalPaid > 0) {
+    purchase.status = "partial";
+  }
+
+  await purchase.save();
+
+  return { message: "Purchase payment recorded successfully" };
 };

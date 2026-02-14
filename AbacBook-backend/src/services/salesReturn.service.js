@@ -108,14 +108,37 @@ await PartyLedger.create({
     amount: totalCOGS,
   });
 
+// ==============================
+// UPDATE SALE AFTER RETURN
+// ==============================
+
+sale.totalReturned = (sale.totalReturned || 0) + totalAmount;
+
+const netAmount =
+  sale.totalAmount - (sale.totalReturned || 0);
+
+const outstanding =
+  netAmount - (sale.totalPaid || 0);
+
+if (outstanding <= 0) {
+  sale.status = "PAID";
+} else if (sale.totalPaid > 0) {
+  sale.status = "PARTIAL";
+} else {
+  sale.status = "UNPAID";
+}
+
+await sale.save();
+
+
   return salesReturn;
 };
 export const listSalesReturns = async () => {
   const returns = await SalesReturn.find()
-    .populate("saleId", "invoiceNo")
-    .populate("customerId", "name")
-    .sort({ createdAt: -1 })
-    .lean();
+  .populate("saleId", "invoiceNo totalAmount totalPaid totalReturned")
+  .populate("customerId", "name")
+  .sort({ createdAt: -1 })
+  .lean();
 
   for (const r of returns) {
     const items = await SalesReturnItem.find({

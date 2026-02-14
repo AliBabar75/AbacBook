@@ -13,8 +13,8 @@ import Ledger from "../modules/ledger.model.js";
 
 export const getTrialBalance = async (asOfDate) => {
   const date = asOfDate
-    ? new Date(new Date(asOfDate).setHours(23, 59, 59, 999))
-    : new Date();
+  ? new Date(new Date(asOfDate).setHours(23, 59, 59, 999))
+  : new Date();
 
   const entries = await Ledger.find({
     date: { $lte: date },
@@ -228,8 +228,9 @@ export const getProfitLoss = async (startDate, endDate) => {
 // =======================================================
 export const getBalanceSheet = async (asOfDate) => {
 
-  const date = asOfDate ? new Date(asOfDate) : new Date();
-
+  const date = asOfDate
+  ? new Date(new Date(asOfDate).setHours(23, 59, 59, 999))
+  : new Date();
   const entries = await Ledger.find({
     date: { $lte: date }
   }).populate("debitAccount creditAccount");
@@ -250,35 +251,47 @@ export const getBalanceSheet = async (asOfDate) => {
   let cash = 0;
   let receivable = 0;
   let inventory = 0;
+
   let payable = 0;
+
+  let capital = 0;
   let retainedEarnings = 0;
 
   for (const acc of accounts) {
 
-    const balance = balances[acc._id.toString()] || 0;
+  const balance = balances[acc._id.toString()] || 0;
 
+  // Assets
+  if (acc.type === "ASSET") {
     if (acc.name === "Cash") cash = balance;
-
-    if (acc.name === "Accounts Receivable") 
-      receivable = balance;
-
-    if (acc.name === "Inventory") 
-      inventory = balance;
-
-    if (acc.name === "Accounts Payable") 
-      payable = Math.abs(balance);
-
-    // Income & Expense accounts go to retained earnings
-    if (acc.type === "INCOME") 
-      retainedEarnings += Math.abs(balance);
-
-    if (acc.type === "EXPENSE") 
-      retainedEarnings -= balance;
+    if (acc.name === "Accounts Receivable") receivable = balance;
+    if (acc.name === "Inventory") inventory = balance;
   }
+
+  // Liabilities
+  if (acc.type === "LIABILITY") {
+    if (acc.name === "Accounts Payable") payable = Math.abs(balance);
+  }
+
+  // Equity
+  if (acc.type === "EQUITY") {
+    if (acc.name === "Owner Capital") capital = Math.abs(balance);
+  }
+
+  // Income
+  if (acc.type === "INCOME") {
+    retainedEarnings += Math.abs(balance);
+  }
+
+  // Expense
+  if (acc.type === "EXPENSE") {
+    retainedEarnings -= balance;
+  }
+}
 
   const totalAssets = cash + receivable + inventory;
   const totalLiabilities = payable;
-  const totalEquity = retainedEarnings;
+  const totalEquity = capital + retainedEarnings;
 
   return {
     assets: {
@@ -292,6 +305,7 @@ export const getBalanceSheet = async (asOfDate) => {
       totalLiabilities
     },
     equity: {
+      capital,
       retainedEarnings,
       totalEquity
     }
