@@ -116,6 +116,26 @@ export default function SalesReturn() {
       setLoading(false);
     }
   };
+const handleRefund = async (saleId: string, amount: number) => {
+  try {
+    await api.post("/sales/refund", {
+      saleId,
+      amount,
+      paymentMethod: "cash",
+      date: new Date(),
+    });
+
+    alert("Refund successful ✅");
+
+    // reload returns
+    const res = await api.get("/sales-returns");
+    setReturns(res.data || []);
+
+  } catch (err) {
+    console.error(err);
+    alert("Refund failed");
+  }
+};
 
   return (
     <div className="animate-fade-in">
@@ -233,7 +253,29 @@ export default function SalesReturn() {
           reason: r.items?.map((i: any) => i.reason).join(", "),
           total: r.totalAmount,
           status: r.status,
-          actions: "—",
+          actions: (() => {
+  const sale = r.saleId;
+
+  if (!sale) return "—";
+
+  const netSale = sale.totalAmount - (sale.totalReturned || 0);
+  const refundable = (sale.totalPaid || 0) > netSale;
+
+  if (!refundable) return "—";
+
+  const refundAmount = sale.totalPaid - netSale;
+
+  return (
+    <Button
+      size="sm"
+      variant="outline"
+      onClick={() => handleRefund(r.saleId._id, refundAmount)}
+    >
+      Refund {refundAmount}
+    </Button>
+  );
+})(),
+
         }))}
         emptyMessage="No Sales Returns Found"
       />

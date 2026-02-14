@@ -31,6 +31,7 @@ import Shopify from "./pages/shopify";
 import PurchaseReturn from "./pages/purchases/PurchaseReturn";
 import SalesReturn from "./pages/sales/SalesReturn";
 import Expenses from "./pages/Expenses";
+import OpeningBalance from "./pages/OpeningBalance";
 
 const queryClient = new QueryClient();
 
@@ -65,6 +66,7 @@ const App = () => (
               <Route path="/inventory/conversion" element={<Conversion />} />
               <Route path="/shopify" element={<Shopify />} />
               {/* Purchases */}
+              <Route path="/openingbalance" element={<OpeningBalance />} />
               <Route path="/purchases" element={<PurchaseList />} />
               <Route path="/purchases/new" element={<NewPurchase />} />
               <Route path="/purchases/return" element={<PurchaseReturn />} />

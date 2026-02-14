@@ -26,9 +26,10 @@ import {
   Wallet2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Sun, Moon } from 'lucide-react';
+// import { Sun, Moon } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
 import { ThemeToggle } from "../../components/common/ThemeToggle";
+
 interface NavItem {
   label: string;
   path?: string;
@@ -56,6 +57,7 @@ const navigation: NavItem[] = [
       { label: "Purchase List", path: "/purchases", icon: ClipboardList },
       { label: "New Purchase", path: "/purchases/new", icon: ShoppingCart },
       { label: "Purchase Return", path: "/purchases/return", icon: Undo2 },
+      { label: "Opening Balance", path: "openingbalance", icon: Undo2 },
     ],
   },
   {
@@ -219,10 +221,6 @@ const { isDark, toggle } = useTheme();
        
           </div>
         </div>
-
-            {/* <button onClick={toggle}>
-  {isDark ? <Sun size={20} /> : <Moon color="white" size={20} />}
-</button> */}
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto p-4 space-y-1">
           {navigation.map(renderNavItem)}

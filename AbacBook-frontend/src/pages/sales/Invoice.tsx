@@ -1,36 +1,46 @@
 import { useNavigate, useParams } from "react-router-dom";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Printer, Download, FileSpreadsheet } from "lucide-react";
-
-/**
- * Invoice View - Sales Module
- * 
- * DATA COMES FROM CLIENT BACKEND API
- * Expected API endpoint: GET /api/sales/:id/invoice
- * Response: { invoice details including company info, customer, items, totals }
- * 
- * NOTE: All calculations come from backend.
- * This is a read-only invoice view.
- */
+import api from "@/services/api.js"
 export default function Invoice() {
   const navigate = useNavigate();
   const { id } = useParams();
 
-  // DATA COMES FROM CLIENT BACKEND API
-  // TODO: Fetch invoice data from API
-  // const { data: invoice, loading } = useFetch(`/api/sales/${id}/invoice`);
+  const [invoice, setInvoice] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+
+  // =========================================================
+  // FETCH INVOICE FROM BACKEND
+  // =========================================================
+  useEffect(() => {
+  const fetchInvoice = async () => {
+    try {
+      setLoading(true);
+      const { data } = await api.get(`/sales/${id}/invoice`);
+      setInvoice(data);
+    } catch (error) {
+      console.error(error);
+      setInvoice(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (id) fetchInvoice();
+}, [id]);
 
   const handlePrint = () => {
-    // DATA COMES FROM CLIENT BACKEND API
-    // Print functionality can use window.print() or generate PDF from backend
     window.print();
   };
 
-  const handleDownload = () => {
-    // DATA COMES FROM CLIENT BACKEND API
-    // TODO: Download PDF from API
-    // window.open(`/api/sales/${id}/invoice/pdf`, '_blank');
-  };
+  if (loading) {
+    return <div className="p-8">Loading invoice...</div>;
+  }
+
+  if (!invoice) {
+    return <div className="p-8">Invoice not found.</div>;
+  }
 
   return (
     <div>
@@ -42,7 +52,9 @@ export default function Invoice() {
           </Button>
           <div>
             <h1 className="text-2xl font-bold text-foreground">Invoice</h1>
-            <p className="text-sm text-muted-foreground">View invoice details</p>
+            <p className="text-sm text-muted-foreground">
+              View invoice details
+            </p>
           </div>
         </div>
         <div className="flex gap-2">
@@ -50,7 +62,7 @@ export default function Invoice() {
             <Printer className="h-4 w-4" />
             Print
           </Button>
-          <Button variant="outline" onClick={handleDownload} className="gap-2">
+          <Button variant="outline" className="gap-2">
             <Download className="h-4 w-4" />
             Download PDF
           </Button>
@@ -59,6 +71,7 @@ export default function Invoice() {
 
       {/* Invoice Document */}
       <div className="bg-card rounded-xl border border-border p-8 shadow-card max-w-4xl mx-auto print:shadow-none print:border-none">
+        
         {/* Company Header */}
         <div className="flex justify-between items-start mb-8 pb-6 border-b">
           <div className="flex items-center gap-3">
@@ -66,31 +79,54 @@ export default function Invoice() {
               <FileSpreadsheet className="h-6 w-6 text-primary-foreground" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-foreground">AbacBook</h2>
-              {/* DATA COMES FROM CLIENT BACKEND API */}
-              <p className="text-sm text-muted-foreground">Company details loaded from API</p>
+              <h2 className="text-xl font-bold text-foreground">
+                {invoice.company.name}
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                {invoice.company.address}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {invoice.company.phone}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {invoice.company.email}
+              </p>
             </div>
           </div>
           <div className="text-right">
             <h3 className="text-2xl font-bold text-primary">INVOICE</h3>
-            {/* DATA COMES FROM CLIENT BACKEND API */}
-            <p className="text-sm text-muted-foreground mt-1">Invoice # —</p>
-            <p className="text-sm text-muted-foreground">Date: —</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              Invoice # {invoice.invoiceNo}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Date: {invoice.date?.slice(0, 10)}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Status: {invoice.status}
+            </p>
           </div>
         </div>
 
-        {/* Bill To / Ship To */}
+        {/* Bill To */}
         <div className="grid grid-cols-2 gap-8 mb-8">
           <div>
-            <h4 className="text-sm font-semibold text-muted-foreground uppercase mb-2">Bill To</h4>
-            {/* DATA COMES FROM CLIENT BACKEND API */}
-            <p className="text-foreground font-medium">Customer name loaded from API</p>
-            <p className="text-sm text-muted-foreground">Address loaded from API</p>
-          </div>
-          <div>
-            <h4 className="text-sm font-semibold text-muted-foreground uppercase mb-2">Payment Terms</h4>
-            {/* DATA COMES FROM CLIENT BACKEND API */}
-            <p className="text-foreground">Terms loaded from API</p>
+            <h4 className="text-sm font-semibold text-muted-foreground uppercase mb-2">
+              Bill To
+            </h4>
+            <p className="text-foreground font-medium">
+              {invoice.customer.name}
+            </p>
+            {invoice.customer.address && (
+              <p className="text-sm text-muted-foreground">
+                {invoice.customer.address}
+              </p>
+            )}
+            <p className="text-sm text-muted-foreground">
+              {invoice.customer.phone}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {invoice.customer.email}
+            </p>
           </div>
         </div>
 
@@ -99,19 +135,33 @@ export default function Invoice() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-border">
-                <th className="text-left py-3 text-sm font-semibold text-muted-foreground">Item</th>
-                <th className="text-right py-3 text-sm font-semibold text-muted-foreground">Qty</th>
-                <th className="text-right py-3 text-sm font-semibold text-muted-foreground">Rate</th>
-                <th className="text-right py-3 text-sm font-semibold text-muted-foreground">Amount</th>
+                <th className="text-left py-3 text-sm font-semibold text-muted-foreground">
+                  Item
+                </th>
+                <th className="text-right py-3 text-sm font-semibold text-muted-foreground">
+                  Qty
+                </th>
+                <th className="text-right py-3 text-sm font-semibold text-muted-foreground">
+                  Rate
+                </th>
+                <th className="text-right py-3 text-sm font-semibold text-muted-foreground">
+                  Amount
+                </th>
               </tr>
             </thead>
             <tbody>
-              {/* DATA COMES FROM CLIENT BACKEND API */}
-              <tr>
-                <td colSpan={4} className="py-8 text-center text-muted-foreground">
-                  Invoice items will be loaded from the backend API
-                </td>
-              </tr>
+              {invoice.items.map((item: any, index: number) => (
+                <tr key={index} className="border-b border-border">
+                  <td className="py-3">{item.name}</td>
+                  <td className="text-right">{item.quantity}</td>
+                  <td className="text-right">
+                    {item.rate.toLocaleString()}
+                  </td>
+                  <td className="text-right font-medium">
+                    {item.amount.toLocaleString()}
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
@@ -119,34 +169,46 @@ export default function Invoice() {
         {/* Totals */}
         <div className="flex justify-end mb-8">
           <div className="w-64 space-y-2">
-            {/* DATA COMES FROM CLIENT BACKEND API */}
             <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Subtotal</span>
-              <span className="font-medium">—</span>
+              <span>Subtotal</span>
+              <span>{invoice.subtotal.toLocaleString()}</span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Tax</span>
-              <span className="font-medium">—</span>
+              <span>Paid</span>
+              <span>{invoice.paid.toLocaleString()}</span>
             </div>
             <div className="flex justify-between text-base pt-2 border-t border-border">
               <span className="font-semibold">Total</span>
-              <span className="font-bold text-primary">—</span>
+              <span className="font-bold text-primary">
+                {invoice.total.toLocaleString()}
+              </span>
+            </div>
+            <div className="flex justify-between text-base">
+              <span className="font-semibold">Balance</span>
+              <span className="font-bold text-destructive">
+                {invoice.balance.toLocaleString()}
+              </span>
             </div>
           </div>
         </div>
 
         {/* Notes */}
-        <div className="border-t border-border pt-6">
-          <h4 className="text-sm font-semibold text-muted-foreground uppercase mb-2">Notes</h4>
-          {/* DATA COMES FROM CLIENT BACKEND API */}
-          <p className="text-sm text-muted-foreground">Notes loaded from API</p>
-        </div>
+        {invoice.notes && (
+          <div className="border-t border-border pt-6">
+            <h4 className="text-sm font-semibold text-muted-foreground uppercase mb-2">
+              Notes
+            </h4>
+            <p className="text-sm text-muted-foreground">
+              {invoice.notes}
+            </p>
+          </div>
+        )}
 
         {/* Footer */}
         <div className="mt-8 pt-6 border-t border-border text-center">
-          <p className="text-sm text-muted-foreground">Thank you for your business!</p>
-          {/* DATA COMES FROM CLIENT BACKEND API */}
-          <p className="text-xs text-muted-foreground mt-1">Company contact details loaded from API</p>
+          <p className="text-sm text-muted-foreground">
+            Thank you for your business!
+          </p>
         </div>
       </div>
     </div>

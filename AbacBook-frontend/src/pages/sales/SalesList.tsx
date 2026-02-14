@@ -5,61 +5,109 @@ import { DataTable } from "@/components/common/DataTable";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { ClipboardList, Search, Filter, Eye, FileText } from "lucide-react";
-import api from "../../services/api.js";  
+import { useLocation } from "react-router-dom";
+import {
+  ClipboardList,
+  Search,
+  Filter,
+  Eye,
+  FileText,
+} from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+
+import api from "../../services/api.js";
+
 type SaleRow = {
   id: string;
   date: string;
   invoiceNo: string;
   customer: string;
   items: string;
-  type:string;
-qty:number;
+  type: string;
+  qty: number;
   total: number;
   status: string;
 };
 
-
 export default function SalesList() {
   const navigate = useNavigate();
+const location = useLocation(); 
   const [searchQuery, setSearchQuery] = useState("");
   const [sales, setSales] = useState<SaleRow[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // 🔗 FETCH SALES
+  const [selectedSale, setSelectedSale] = useState<SaleRow | null>(null);
+  const [paymentAmount, setPaymentAmount] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("cash");
+
+  // ==============================
+  // FETCH SALES
+  // ==============================
+  const fetchSales = async () => {
+    try {
+      setLoading(true);
+      const res = await api.get("/sales");
+
+      const formatted = res.data.map((sale: any) => ({
+        id: sale._id,
+        date: new Date(sale.date).toLocaleDateString(),
+        invoiceNo: sale.invoiceNo,
+        customer: sale.customerId?.name || "—",
+        qty: sale.items?.length || 0,
+        items:
+          sale.items && sale.items.length > 0
+            ? sale.items.map((i: any) => i.itemId?.name).join(", ")
+            : "—",
+        type:
+          sale.items?.length > 0
+            ? [...new Set(sale.items.map((i: any) => i.itemId?.type))].join(", ")
+            : "—",
+        total: sale.totalAmount,
+        status: sale.status,
+      returned: sale.totalReturned || 0,
+netAmount:
+  (sale.totalAmount || 0) - (sale.totalReturned || 0),
+      }));
+
+      setSales(formatted);
+    } catch (err) {
+      console.error("Failed to load sales", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchSales = async () => {
-      try {
-        setLoading(true);
-        const res = await api.get("/sales");
+  fetchSales();
+}, [location.pathname]);
+  // ==============================
+  // RECEIVE PAYMENT
+  // ==============================
+  const handleReceivePayment = async () => {
+    if (!selectedSale) return;
 
-        const formatted = res.data.map((sale: any) => ({
-          id: sale._id,
-          date: new Date(sale.date).toLocaleDateString(),
-          invoiceNo: sale.invoiceNo,
-          customer: sale.customerId?.name || "—",
-          qty: sale.items?.length || 0,
-           items:
-    sale.items && sale.items.length > 0
-      ? sale.items.map((i: any) => i.itemId?.name).join(", ")
-      : "—",
-      type:sale.items?.length > 0
-      ? [...new Set(sale.items.map((i: any) => i.itemId?.type))].join(", ")
-      : "—",
-          total: sale.totalAmount,
-          status: sale.status,
-        }));
+    try {
+      await api.post("/sales/payment", {
+        saleId: selectedSale.id,
+        amount: Number(paymentAmount),
+        paymentMethod,
+        date: new Date(),
+      });
 
-        setSales(formatted);
-      } catch (err) {
-        console.error("Failed to load sales", err);
-      } finally {
-        setLoading(false);
-      }
-    };
+      await fetchSales();
 
-    fetchSales();
-  }, []);
+      setSelectedSale(null);
+      setPaymentAmount("");
+    } catch (err) {
+      console.error("Payment failed", err);
+    }
+  };
 
   const filteredSales = sales.filter(
     (s) =>
@@ -67,14 +115,19 @@ export default function SalesList() {
       s.customer.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  // ==============================
+  // TABLE COLUMNS
+  // ==============================
   const columns = [
     { key: "date", header: "Date" },
     { key: "invoiceNo", header: "Invoice No." },
     { key: "customer", header: "Customer" },
     { key: "type", header: "Item Type" },
     { key: "items", header: "Items", className: "text-center" },
-    { key: "qty", header: "qty", className: "text-center" },
+    { key: "qty", header: "Qty", className: "text-center" },
     { key: "total", header: "Total", className: "text-right" },
+    { key: "returned", header: "Returned", className: "text-right" },
+{ key: "netAmount", header: "Net Sale", className: "text-right" },
     {
       key: "status",
       header: "Status",
@@ -94,6 +147,8 @@ export default function SalesList() {
       header: "",
       render: (row: SaleRow) => (
         <div className="flex gap-1">
+
+          {/* View */}
           <Button
             variant="ghost"
             size="sm"
@@ -105,6 +160,7 @@ export default function SalesList() {
             <Eye className="h-4 w-4" />
           </Button>
 
+          {/* Invoice */}
           <Button
             variant="ghost"
             size="sm"
@@ -115,6 +171,68 @@ export default function SalesList() {
           >
             <FileText className="h-4 w-4" />
           </Button>
+
+          {/* Payment */}
+          {row.status !== "PAID" && (
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedSale(row);
+                  }}
+                >
+                  Receive
+                </Button>
+              </DialogTrigger>
+
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Receive Payment</DialogTitle>
+                </DialogHeader>
+
+                <div className="space-y-4">
+
+                  <div>
+                    <label className="text-sm">Amount</label>
+                    <Input
+                      type="number"
+                      value={paymentAmount}
+                      onChange={(e) =>
+                        setPaymentAmount(e.target.value)
+                      }
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-sm">Payment Method</label>
+                    <select
+                      className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
+                      value={paymentMethod}
+                      onChange={(e) =>
+                        setPaymentMethod(e.target.value)
+                      }
+                    >
+                      <option value="cash">Cash</option>
+                      <option value="bank">Bank Transfer</option>
+                      <option value="card">Card</option>
+                      <option value="cheque">Cheque</option>
+                    </select>
+                  </div>
+
+                  <Button
+                    className="w-full"
+                    onClick={handleReceivePayment}
+                  >
+                    Confirm Payment
+                  </Button>
+
+                </div>
+              </DialogContent>
+            </Dialog>
+          )}
         </div>
       ),
     },
@@ -130,7 +248,6 @@ export default function SalesList() {
         onAction={() => navigate("/sales/new")}
       />
 
-      {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-4 mb-6">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />

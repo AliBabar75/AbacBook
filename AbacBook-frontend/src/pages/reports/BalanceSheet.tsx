@@ -115,7 +115,11 @@ useEffect(() => {
                 </div>
                 <div className="flex justify-between font-medium mt-3 pt-2 border-t text-sm">
                   <span>Total Current Assets</span>
-                  <span>—</span>
+                <span>
+  {report?.assets?.totalAssets?.toLocaleString("en-US", {
+    minimumFractionDigits: 2
+  }) ?? 0}
+</span>
                 </div>
               </div>
 
@@ -186,7 +190,11 @@ useEffect(() => {
                 </div>
                 <div className="flex justify-between font-medium mt-3 pt-2 border-t text-sm">
                   <span>Total Current Liabilities</span>
-                  <span>—</span>
+                  <span>
+  {report?.liabilities?.totalLiabilities?.toLocaleString("en-US", {
+    minimumFractionDigits: 2
+  }) ?? 0}
+</span>
                 </div>
               </div>
 
@@ -213,7 +221,11 @@ useEffect(() => {
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground pl-2">Capital</span>
-                    <span>—</span>
+                    <span>
+  {report?.equity?.capital?.toLocaleString("en-US", {
+    minimumFractionDigits: 2
+  }) ?? 0}
+</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground pl-2">Retained Earnings</span>
@@ -224,7 +236,11 @@ useEffect(() => {
                 </div>
                 <div className="flex justify-between font-medium mt-3 pt-2 border-t text-sm">
                   <span>Total Equity</span>
-                  <span>—</span>
+                  <span>
+  {report?.equity?.totalEquity?.toLocaleString("en-US", {
+    minimumFractionDigits: 2
+  }) ?? 0}  
+</span>
                 </div>
               </div>
 
@@ -234,7 +250,10 @@ useEffect(() => {
                   <span>Total Liabilities & Equity</span>
                   {/* DATA COMES FROM CLIENT BACKEND API */}
                  <span className="text-primary">
-  {report?.equity?.totalEquity?.toLocaleString("en-US", { minimumFractionDigits: 2 }) ?? 0}
+{(
+  (report?.liabilities?.totalLiabilities || 0) +
+  (report?.equity?.totalEquity || 0)
+).toLocaleString("en-US", { minimumFractionDigits: 2 })}
 </span>
 
                 </div>
