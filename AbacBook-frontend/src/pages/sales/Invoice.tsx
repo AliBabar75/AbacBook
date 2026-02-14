@@ -10,9 +10,7 @@ export default function Invoice() {
   const [invoice, setInvoice] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
-  // =========================================================
-  // FETCH INVOICE FROM BACKEND
-  // =========================================================
+  
   useEffect(() => {
   const fetchInvoice = async () => {
     try {

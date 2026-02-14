@@ -46,9 +46,7 @@ const location = useLocation();
   const [paymentAmount, setPaymentAmount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("cash");
 
-  // ==============================
-  // FETCH SALES
-  // ==============================
+ 
   const fetchSales = async () => {
     try {
       setLoading(true);
@@ -86,9 +84,9 @@ netAmount:
   useEffect(() => {
   fetchSales();
 }, [location.pathname]);
-  // ==============================
+ 
   // RECEIVE PAYMENT
-  // ==============================
+ 
   const handleReceivePayment = async () => {
     if (!selectedSale) return;
 
@@ -99,11 +97,12 @@ netAmount:
         paymentMethod,
         date: new Date(),
       });
-
+   const saleId = selectedSale.id;
       await fetchSales();
 
       setSelectedSale(null);
       setPaymentAmount("");
+      navigate(`/sales/${saleId}/invoice`);
     } catch (err) {
       console.error("Payment failed", err);
     }
@@ -154,7 +153,7 @@ netAmount:
             size="sm"
             onClick={(e) => {
               e.stopPropagation();
-              navigate(`/sales/${row.id}`);
+             navigate(`/sales/${row.id}/invoice`);
             }}
           >
             <Eye className="h-4 w-4" />
@@ -270,7 +269,7 @@ netAmount:
         data={filteredSales}
         loading={loading}
         emptyMessage="No sales found"
-        onRowClick={(row) => navigate(`/sales/${row.id}`)}
+       
       />
     </div>
   );
