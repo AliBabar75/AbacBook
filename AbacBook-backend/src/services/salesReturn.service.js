@@ -5,6 +5,8 @@ import SaleItem from "../modules/saleItem.model.js";
 import Item from "../modules/item.model.js";
 import InventoryTransaction from "../modules/inventoryTransaction.model.js";
 import PartyLedger from "../modules/partyLedger.model.js";
+import Account from "../modules/account.model.js";
+import Ledger from "../modules/ledger.model.js";
 
 export const createSalesReturn = async (data) => {
   const { saleId, date, items, notes } = data;
@@ -16,8 +18,13 @@ export const createSalesReturn = async (data) => {
   const sale = await Sale.findById(saleId);
   if (!sale) throw new Error("Sale not found");
 
+  const revenueAccount = await Account.findOne({ name: "Sale Revenue" });
+  const arAccount = await Account.findOne({ name: "Accounts Receivable" });
+  const cogsAccount = await Account.findOne({ name: "Cost of Goods Sold" });
+  const inventoryAccount = await Account.findOne({ name: "Inventory" });
+
   let totalAmount = 0;
-  let totalTax = 0;
+  let totalCOGS = 0;
 
   const salesReturn = await SalesReturn.create({
     returnNo: `SR-${Date.now()}`,
@@ -31,25 +38,13 @@ export const createSalesReturn = async (data) => {
 
   for (const row of items) {
     const item = await Item.findById(row.itemId);
-    if (!item) throw new Error("Item not found");
-
-    const saleItem = await SaleItem.findOne({
-      saleId,
-      itemId: row.itemId,
-    });
-
-    if (!saleItem) throw new Error("Sale item not found");
-
-    if (row.quantity > saleItem.quantity) {
-      throw new Error("Return qty exceeds sold qty");
-    }
+    const saleItem = await SaleItem.findOne({ saleId, itemId: row.itemId });
 
     const amount = row.quantity * saleItem.rate;
-    const tax = row.tax || 0;
     const cogs = row.quantity * item.avgCost;
 
     totalAmount += amount;
-    totalTax += tax;
+    totalCOGS += cogs;
 
     await SalesReturnItem.create({
       salesReturnId: salesReturn._id,
@@ -57,12 +52,9 @@ export const createSalesReturn = async (data) => {
       quantity: row.quantity,
       rate: saleItem.rate,
       amount,
-      tax,
       cogs,
-      reason: row.reason,
     });
 
-    // 🔥 STOCK IN
     item.quantity += row.quantity;
     await item.save();
 
@@ -77,31 +69,47 @@ export const createSalesReturn = async (data) => {
   }
 
   salesReturn.totalAmount = totalAmount;
-  salesReturn.totalTax = totalTax;
   await salesReturn.save();
 
-  // 🔥 CUSTOMER LEDGER REVERSE (CREDIT)
-  const lastLedger = await PartyLedger.findOne({
-    partyId: sale.customerId,
-    partyType: "customer",
-  }).sort({ createdAt: -1 });
+// CUSTOMER LEDGER REVERSE (CREDIT)
+const lastLedger = await PartyLedger.findOne({
+  partyId: sale.customerId,
+  partyType: "customer",
+}).sort({ createdAt: -1 });
 
-  const previousBalance = lastLedger?.balanceAfter || 0;
-  const newBalance = previousBalance - totalAmount;
+const previousBalance = lastLedger?.balanceAfter || 0;
+const newBalance = previousBalance - totalAmount;
 
-  await PartyLedger.create({
-    partyId: sale.customerId,
-    partyType: "customer",
-    refType: "SALES_RETURN",
-    refId: salesReturn._id,
-    debit: 0,
-    credit: totalAmount,
-    balanceAfter: newBalance,
+await PartyLedger.create({
+  partyId: sale.customerId,
+  partyType: "customer",
+  refType: "SALES_RETURN",
+  refId: salesReturn._id,
+  debit: 0,
+  credit: totalAmount,
+  balanceAfter: newBalance,
+});
+
+  // Revenue Reverse
+  await Ledger.create({
+    description: "Sales Return - Revenue Reverse",
+    date,
+    debitAccount: revenueAccount._id,
+    creditAccount: arAccount._id,
+    amount: totalAmount,
+  });
+
+  // COGS Reverse
+  await Ledger.create({
+    description: "Sales Return - COGS Reverse",
+    date,
+    debitAccount: inventoryAccount._id,
+    creditAccount: cogsAccount._id,
+    amount: totalCOGS,
   });
 
   return salesReturn;
 };
-
 export const listSalesReturns = async () => {
   const returns = await SalesReturn.find()
     .populate("saleId", "invoiceNo")

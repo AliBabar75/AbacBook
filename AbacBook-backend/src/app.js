@@ -15,6 +15,7 @@ import saleRoutes from "./routes/sale.routes.js";
 import purchaseReturnRoutes from "./routes/purchaseReturn.routes.js";
 import salesReturnRoutes from "./routes/salesReturn.routes.js";
 import dashboardRoutes from "./routes/dashboard.routes.js";
+import expenseRoutes from "./routes/expense.routes.js";
 
 
 const app = express();
@@ -39,6 +40,8 @@ app.use("/api/customers", customerRoutes);
 app.use("/api/sales", saleRoutes);
 app.use("/api/purchase-returns", purchaseReturnRoutes);
 app.use("/api/sales-returns", salesReturnRoutes);
+app.use("/api/expenses", expenseRoutes);
+
 
 app.use(errorHandler);
 

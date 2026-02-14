@@ -1,8 +1,10 @@
 import Sale from "../modules/sale.model.js";
 import SaleItem from "../modules/saleItem.model.js";
 import Item from "../modules/item.model.js";
-import InventoryTransaction from "../modules/inventoryTransaction.model.js";
 import PartyLedger from "../modules/partyLedger.model.js";
+import InventoryTransaction from "../modules/inventoryTransaction.model.js";
+import Account from "../modules/account.model.js";
+import Ledger from "../modules/ledger.model.js";
 
 export const createSale = async (data) => {
   const { date, invoiceNo, customerId, items, notes } = data;
@@ -11,17 +13,21 @@ export const createSale = async (data) => {
     throw new Error("Sale items required");
   }
 
-  let totalAmount = 0;
+  const revenueAccount = await Account.findOne({ name: "Sale Revenue" });
+  const arAccount = await Account.findOne({ name: "Accounts Receivable" });
+  const cogsAccount = await Account.findOne({ name: "Cost of Goods Sold" });
+  const inventoryAccount = await Account.findOne({ name: "Inventory" });
 
-  // 1️⃣ VALIDATION + TOTAL
+  if (!revenueAccount || !arAccount || !cogsAccount || !inventoryAccount) {
+    throw new Error("Required accounts missing");
+  }
+
+  let totalAmount = 0;
+  let totalCOGS = 0;
+
   for (const row of items) {
     const item = await Item.findById(row.itemId);
-
     if (!item) throw new Error("Item not found");
-
-    // if (item.type !== "FINISHED_GOOD") {
-    //   throw new Error(`${item.name} is not a finished good`);
-    // }
 
     if (item.quantity < row.quantity) {
       throw new Error(`Insufficient stock for ${item.name}`);
@@ -30,7 +36,6 @@ export const createSale = async (data) => {
     totalAmount += row.quantity * row.rate;
   }
 
-  // 2️⃣ SALE CREATE
   const sale = await Sale.create({
     date,
     invoiceNo,
@@ -40,12 +45,12 @@ export const createSale = async (data) => {
     status: "UNPAID",
   });
 
-  // 3️⃣ SALE ITEMS + STOCK OUT
   for (const row of items) {
     const item = await Item.findById(row.itemId);
 
     const amount = row.quantity * row.rate;
     const cogs = row.quantity * item.avgCost;
+    totalCOGS += cogs;
 
     await SaleItem.create({
       saleId: sale._id,
@@ -56,11 +61,9 @@ export const createSale = async (data) => {
       cogs,
     });
 
-    // stock minus
     item.quantity -= row.quantity;
     await item.save();
 
-    // inventory transaction
     await InventoryTransaction.create({
       item: item._id,
       type: "OUT",
@@ -71,7 +74,25 @@ export const createSale = async (data) => {
     });
   }
 
-  // 4️⃣ CUSTOMER LEDGER (DEBIT)
+  // Revenue Entry
+  await Ledger.create({
+    description: "Sale Revenue",
+    date,
+    debitAccount: arAccount._id,
+    creditAccount: revenueAccount._id,
+    amount: totalAmount,
+  });
+
+  // COGS Entry
+  await Ledger.create({
+    description: "Cost of Goods Sold",
+    date,
+    debitAccount: cogsAccount._id,
+    creditAccount: inventoryAccount._id,
+    amount: totalCOGS,
+  });
+
+  // Party Ledger
   const lastLedger = await PartyLedger.findOne({
     partyId: customerId,
     partyType: "customer",

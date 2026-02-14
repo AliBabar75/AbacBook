@@ -1,6 +1,9 @@
 import Purchase from "../modules/purchase.model.js";
-import { stockIn } from "../services/inventory.service.js";
+import { stockIn } from "./inventory.service.js";
 import Account from "../modules/account.model.js";
+import Supplier from "../modules/supplier.model.js";
+import PartyLedger from "../modules/partyLedger.model.js";
+
 export const createPurchaseService = async ({
   date,
   invoiceNo,
@@ -10,22 +13,20 @@ export const createPurchaseService = async ({
   items,
   userId,
 }) => {
+
   if (!items || items.length === 0) {
-    throw new Error("Purchase items are required");
+    throw new Error("Purchase items required");
   }
-const inventoryAccount = await Account.findOne({ name: "Inventory" });
-if (!inventoryAccount) {
-  throw new Error("Inventory account not found");
-}
 
-// Cash account nikaalo
-const cashAccount = await Account.findOne({ name: "Cash" });
-if (!cashAccount) {
-  throw new Error("Cash account not found");
-}
+  const inventoryAccount = await Account.findOne({ name: "Inventory" });
+  const apAccount = await Account.findOne({ name: "Accounts Payable" });
 
-  // const INVENTORY_ACCOUNT = "Inventory";
-  // const CASH_ACCOUNT = "Cash";
+  if (!inventoryAccount || !apAccount) {
+    throw new Error("Inventory or Accounts Payable account missing");
+  }
+
+  const supplier = await Supplier.findById(supplierId);
+  if (!supplier) throw new Error("Supplier not found");
 
   let grandTotal = 0;
 
@@ -52,55 +53,60 @@ if (!cashAccount) {
     createdBy: userId,
   });
 
-  // ✅ INVENTORY ENTRY
+  // 🔹 STOCK IN (inventory increase)
   for (const item of normalizedItems) {
-     console.log("STOCK IN CALL DATA 👉", {
-    itemId: item.rawMaterialId,
-    quantity: item.quantity,
-    unitCost: item.rate,
-  });
- await stockIn({
-  itemId: item.rawMaterialId,        
-  quantity: item.quantity,
-  unitCost: item.rate,
-  debitAccount: inventoryAccount._id, //  from DB
-  creditAccount: cashAccount._id,     //  from DB
-  userId,
-  reference: "PURCHASE",
-});
-   
+    await stockIn({
+      itemId: item.rawMaterialId,
+      quantity: item.quantity,
+      unitCost: item.rate,
+      debitAccount: inventoryAccount._id,
+      creditAccount: apAccount._id,
+      reference: "PURCHASE",
+      userId,
+    });
   }
+
+  // 🔹 Party Ledger (Supplier Credit)
+  const lastLedger = await PartyLedger.findOne({
+    partyId: supplierId,
+    partyType: "supplier",
+  }).sort({ createdAt: -1 });
+
+  const previousBalance = lastLedger?.balanceAfter || 0;
+  const newBalance = previousBalance - grandTotal;
+
+  await PartyLedger.create({
+    partyId: supplierId,
+    partyType: "supplier",
+    refType: "PURCHASE",
+    refId: purchase._id,
+    debit: 0,
+    credit: grandTotal,
+    balanceAfter: newBalance,
+  });
 
   return purchase;
 };
 
 
+
 export const listPurchasesService = async ({ page = 1, limit = 20 }) => {
+
   const purchases = await Purchase.find()
     .populate("supplierId", "name")
-    .populate("items.rawMaterialId", "name") // 🔥 IMPORTANT
+    .populate("items.rawMaterialId", "name")
     .sort({ createdAt: -1 })
     .skip((page - 1) * limit)
     .limit(limit)
     .lean();
 
-  return purchases.map((p) => {
-    const itemNames = p.items
-      .map(i => i.rawMaterialId?.name)
-      .filter(Boolean);
-
-    return {
-      id: p._id,
-      date: p.date,
-      invoiceNo: p.invoiceNo,
-      supplier: p.supplierId?.name || "—",
-
-      // ✅ frontend isi ko show karega
-      itemNames,
-
-      items: p.items.length,
-      total: p.totalAmount,
-      status: p.status,
-    };
-  });
+  return purchases.map((p) => ({
+    id: p._id,
+    date: p.date,
+    invoiceNo: p.invoiceNo,
+    supplier: p.supplierId?.name || "—",
+    items: p.items.length,
+    total: p.totalAmount,
+    status: p.status,
+  }));
 };

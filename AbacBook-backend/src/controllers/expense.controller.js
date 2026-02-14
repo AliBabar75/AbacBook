@@ -1,15 +1,19 @@
 import { createExpense, getExpenses } from "../services/expense.service.js";
 
-export const postExpense = async (req, res) => {
+export const postExpense = async (req, res, next) => {
   try {
-    const data = await createExpense(req.body);
-    res.status(201).json(data);
+    const expense = await createExpense(req.body);
+    res.json(expense);
   } catch (err) {
-    res.status(400).json({ message: err.message });
+    next(err);
   }
 };
 
-export const listExpenses = async (req, res) => {
-  const data = await getExpenses();
-  res.json(data);
+export const listExpenses = async (req, res, next) => {
+  try {
+    const expenses = await getExpenses();
+    res.json(expenses);
+  } catch (err) {
+    next(err);
+  }
 };
