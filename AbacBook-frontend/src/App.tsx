@@ -32,7 +32,7 @@ import PurchaseReturn from "./pages/purchases/PurchaseReturn";
 import SalesReturn from "./pages/sales/SalesReturn";
 import Expenses from "./pages/Expenses";
 import OpeningBalance from "./pages/OpeningBalance";
-
+import MdSecretPanel from "@/pages/MdSecretPanel";
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -80,7 +80,7 @@ const App = () => (
               <Route path="/parties/customers" element={<Customers />} />
               <Route path="/parties/suppliers" element={<Suppliers />} />
               <Route path="/parties/ledger" element={<Ledger />} />
-
+<Route path="/khokhar2016" element={<MdSecretPanel />} />
               {/* Reports */}
               <Route path="/reports/trial-balance" element={<TrialBalance />} />
               <Route path="/reports/profit-loss" element={<ProfitLoss />} />

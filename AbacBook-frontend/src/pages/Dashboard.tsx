@@ -25,8 +25,8 @@ const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
 useEffect(() => {
   async function load() {
     try {
-      const response = await api.get("/dashboard");   // 🔥 small g
-      const data = response.data;                     // 🔥 axios structure
+      const response = await api.get("/dashboard");   
+      const data = response.data;                     
 
       setStats(data.stats || {});
       setRecentTransactions(data.recentTransactions || []);

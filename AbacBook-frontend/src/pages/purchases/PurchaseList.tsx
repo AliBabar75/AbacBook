@@ -16,8 +16,7 @@ import {
   Dialog,
   DialogContent,
   DialogHeader,
-  DialogTitle,
-  DialogTrigger
+  DialogTitle
 } from "@/components/ui/dialog";
 import api from "../../services/api.js";
 
@@ -35,7 +34,26 @@ export default function PurchaseList() {
   const loadPurchases = async () => {
     setLoading(true);
     const res = await api.get("/purchases");
-    setPurchases(res.data.items);
+
+    const formatted = (res.data.items || []).map((p: any) => {
+      const total = Number(p.total || 0);
+      const returned = Number(p.returned || 0);
+      const totalPaid = Number(p.totalPaid || 0);
+
+      const net = total - returned;
+      const outstanding = net - totalPaid;
+
+      return {
+        ...p,
+        total,
+        returned,
+        totalPaid,
+        net,
+        outstanding,
+      };
+    });
+
+    setPurchases(formatted);
     setLoading(false);
   };
 
@@ -46,17 +64,36 @@ export default function PurchaseList() {
   const handlePayment = async () => {
     if (!selectedPurchase) return;
 
+    const amount = Number(paymentAmount);
+    if (!amount || amount <= 0) {
+      alert("Enter valid payment amount");
+      return;
+    }
+
+    if (amount > selectedPurchase.outstanding) {
+      alert("Payment exceeds outstanding amount");
+      return;
+    }
+
     await api.post("/purchases/payment", {
       purchaseId: selectedPurchase.id,
-      amount: Number(paymentAmount),
+      amount,
       paymentMethod,
       date: new Date()
     });
 
     setIsOpen(false);
     setPaymentAmount("");
-    loadPurchases();
+    setSelectedPurchase(null);
+
+    await loadPurchases();
   };
+
+  const filteredPurchases = purchases.filter(
+    (p) =>
+      p.invoiceNo?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.supplier?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const columns = [
     { key: "date", header: "Date" },
@@ -64,6 +101,32 @@ export default function PurchaseList() {
     { key: "supplier", header: "Supplier" },
     { key: "items", header: "Items", className: "text-center" },
     { key: "total", header: "Total", className: "text-right" },
+
+    {
+      key: "returned",
+      header: "Returned",
+      className: "text-right",
+      render: (row: any) => row.returned
+    },
+
+    {
+      key: "net",
+      header: "Net Purchase",
+      className: "text-right",
+      render: (row: any) => row.net
+    },
+{
+  key: "outstanding",
+  header: "Remaining",
+  className: "text-right",
+  render: (row: any) => row.outstanding
+},
+{
+  key: "netPurchase",
+  header: "Net Purchase",
+  className: "text-right",
+  render: (row: any) => row.netPurchase
+},  
     {
       key: "status",
       header: "Status",
@@ -75,9 +138,14 @@ export default function PurchaseList() {
             ? "secondary"
             : "outline";
 
-        return <Badge variant={variant}>{row.status}</Badge>;
+        return (
+          <Badge variant={variant}>
+            {row.status?.toUpperCase()}
+          </Badge>
+        );
       }
     },
+
     {
       key: "actions",
       header: "",
@@ -89,12 +157,14 @@ export default function PurchaseList() {
             onClick={(e) => {
               e.stopPropagation();
               navigate(`/purchases/${row.id}`);
-            }}
+            }
+          
+          }
           >
             <Eye className="h-4 w-4" />
           </Button>
 
-          {row.status !== "paid" && (
+          {row.outstanding > 0 && (
             <Button
               variant="ghost"
               size="sm"
@@ -132,6 +202,7 @@ export default function PurchaseList() {
             className="pl-10"
           />
         </div>
+
         <Button variant="outline" className="gap-2">
           <Filter className="h-4 w-4" />
           Filter
@@ -140,13 +211,12 @@ export default function PurchaseList() {
 
       <DataTable
         columns={columns}
-        data={purchases}
+        data={filteredPurchases}
         loading={loading}
         emptyMessage="No purchases found."
         onRowClick={(row) => navigate(`/purchases/${row.id}`)}
       />
 
-      {/* Payment Modal */}
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent>
           <DialogHeader>
@@ -154,27 +224,23 @@ export default function PurchaseList() {
           </DialogHeader>
 
           <div className="space-y-4">
-            <div>
-              <Input
-                type="number"
-                placeholder="Enter payment amount"
-                value={paymentAmount}
-                onChange={(e) => setPaymentAmount(e.target.value)}
-              />
-            </div>
+            <Input
+              type="number"
+              placeholder={`Outstanding: ${selectedPurchase?.outstanding || 0}`}
+              value={paymentAmount}
+              onChange={(e) => setPaymentAmount(e.target.value)}
+            />
 
-            <div>
-              <select
-                className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
-                value={paymentMethod}
-                onChange={(e) => setPaymentMethod(e.target.value)}
-              >
-                <option value="cash">Cash</option>
-                <option value="bank">Bank Transfer</option>
-                <option value="card">Card</option>
-                <option value="cheque">Cheque</option>
-              </select>
-            </div>
+            <select
+              className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
+              value={paymentMethod}
+              onChange={(e) => setPaymentMethod(e.target.value)}
+            >
+              <option value="cash">Cash</option>
+              <option value="bank">Bank Transfer</option>
+              <option value="card">Card</option>
+              <option value="cheque">Cheque</option>
+            </select>
 
             <Button className="w-full" onClick={handlePayment}>
               Confirm Payment
