@@ -1,16 +1,18 @@
 import {
   createPurchaseService,
   listPurchasesService,
+  payPurchaseService,
+  refundPurchasePayment
 } from "../services/purchase.service.js";
+
 import Purchase from "../modules/purchase.model.js";
-import { payPurchaseService } from "../services/purchase.service.js";
+
 export const createPurchase = async (req, res) => {
   try {
     const purchase = await createPurchaseService({
       ...req.body,
       userId: req.user.id,
     });
-
     res.status(201).json({ success: true, data: purchase });
   } catch (err) {
     res.status(400).json({ success: false, message: err.message });
@@ -37,7 +39,6 @@ export const getPurchaseById = async (req, res) => {
 
     res.json(purchase);
   } catch (err) {
-    console.error("GET /purchases/:id error", err);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -45,6 +46,15 @@ export const getPurchaseById = async (req, res) => {
 export const payPurchase = async (req, res) => {
   try {
     const result = await payPurchaseService(req.body);
+    res.json({ success: true, message: result.message });
+  } catch (err) {
+    res.status(400).json({ success: false, message: err.message });
+  }
+};
+
+export const refundPurchase = async (req, res) => {
+  try {
+    const result = await refundPurchasePayment(req.body);
     res.json({ success: true, message: result.message });
   } catch (err) {
     res.status(400).json({ success: false, message: err.message });

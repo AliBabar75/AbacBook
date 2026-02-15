@@ -50,11 +50,20 @@ export const createPurchaseReturnService = async ({
       amount,
       reason: row.reason,
     });
+  }
 
-    // 🔹 STOCK OUT (reduce inventory)
+  // ✅ VALIDATION ADDED HERE (Before stock movement & create)
+  const totalReturnedSoFar = purchase.totalReturned || 0;
+
+  if (totalReturnedSoFar + totalAmount > purchase.totalAmount) {
+    throw new Error("Return exceeds purchase total");
+  }
+
+  // 🔹 STOCK OUT (reduce inventory)
+  for (const item of normalizedItems) {
     await stockOut({
-      itemId: row.itemId,
-      quantity: row.quantity,
+      itemId: item.rawMaterialId,
+      quantity: item.quantity,
       debitAccount: apAccount._id,
       creditAccount: inventoryAccount._id,
       userId,
@@ -91,13 +100,16 @@ export const createPurchaseReturnService = async ({
     credit: 0,
     balanceAfter: newBalance,
   });
-purchase.totalReturned =
+
+  // 🔹 Update Purchase
+  purchase.totalReturned =
     (purchase.totalReturned || 0) + totalAmount;
 
+  const netPurchase =
+    purchase.totalAmount - purchase.totalReturned;
+
   const outstanding =
-    purchase.totalAmount -
-    (purchase.totalPaid || 0) -
-    (purchase.totalReturned || 0);
+    netPurchase - (purchase.totalPaid || 0);
 
   if (outstanding <= 0) {
     purchase.status = "paid";
@@ -108,5 +120,6 @@ purchase.totalReturned =
   }
 
   await purchase.save();
+
   return returnDoc;
 };

@@ -262,16 +262,20 @@ export const getBalanceSheet = async (asOfDate) => {
   const balance = balances[acc._id.toString()] || 0;
 
   // Assets
-  if (acc.type === "ASSET") {
-    if (acc.name === "Cash") cash = balance;
-    if (acc.name === "Accounts Receivable") receivable = balance;
-    if (acc.name === "Inventory") inventory = balance;
-  }
+ if (acc.type === "ASSET") {
+  const assetBalance = balance > 0 ? balance : 0;
+
+  if (acc.name === "Cash") cash = assetBalance;
+  if (acc.name === "Accounts Receivable") receivable = assetBalance;
+  if (acc.name === "Inventory") inventory = assetBalance;
+}
 
   // Liabilities
   if (acc.type === "LIABILITY") {
-    if (acc.name === "Accounts Payable") payable = Math.abs(balance);
-  }
+  const liabilityBalance = balance < 0 ? Math.abs(balance) : 0;
+
+  if (acc.name === "Accounts Payable") payable = liabilityBalance;
+}
 
   // Equity
   if (acc.type === "EQUITY") {
