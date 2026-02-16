@@ -41,6 +41,7 @@ app.use("/api/purchases", purchaseRoutes);
 app.use("/api/customers", customerRoutes);
 app.use("/api/sales", saleRoutes);
 app.use("/api/sales", invoiceRoutes);
+
 app.use("/api/purchase-returns", purchaseReturnRoutes);
 app.use("/api/sales-returns", salesReturnRoutes);
 app.use("/api/expenses", expenseRoutes);

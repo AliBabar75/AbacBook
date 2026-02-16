@@ -128,12 +128,12 @@ export default function PurchaseReturn() {
     if (!selectedReturn) return;
 
     try {
-      await api.post("/purchases/refund", {
-        purchaseId: selectedReturn.purchaseId?._id,
-        amount: Number(refundAmount),
-        paymentMethod: refundMethod,
-        date: new Date().toISOString(),
-      });
+     await api.post("/purchase-returns/refund", {
+  returnId: selectedReturn._id,
+  amount: Number(refundAmount),
+  paymentMethod: refundMethod,
+  date: new Date().toISOString(),
+});
 
       alert("Supplier Cash Refund Received ✅");
 
@@ -236,14 +236,15 @@ export default function PurchaseReturn() {
         data={returns.map(r => {
           const purchase = r.purchaseId;
           if (!purchase) return {};
+const totalRefunded = r.refundPaid || 0;
+const remaining = r.totalAmount - totalRefunded;
+          // const totalAmount = purchase.totalAmount || 0;
+          // const totalReturned = purchase.totalReturned || 0;
+          // const totalPaid = purchase.totalPaid || 0;
 
-          const totalAmount = purchase.totalAmount || 0;
-          const totalReturned = purchase.totalReturned || 0;
-          const totalPaid = purchase.totalPaid || 0;
-
-          const netPurchase = totalAmount - totalReturned;
-          const refundable = totalPaid > netPurchase;
-          const refundAmt = refundable ? totalPaid - netPurchase : 0;
+          // const netPurchase = totalAmount - totalReturned;
+          // const refundable = totalPaid > netPurchase;
+          // const refundAmt = refundable ? totalPaid - netPurchase : 0;
 
           return {
             returnNo: r.returnNo,
@@ -252,21 +253,22 @@ export default function PurchaseReturn() {
             supplier: purchase.supplierId?.name || "-",
             qty: r.items?.reduce((sum: number, i: any) => sum + i.quantity, 0),
             total: r.totalAmount,
-            actions: refundable ? (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => {
-                  setSelectedReturn(r);
-                  setRefundAmount(refundAmt.toString());
-                  setRefundOpen(true);
-                }}
-              >
-                Receive {refundAmt}
-              </Button>
-            ) : (
-              <Badge variant="secondary">Cash Settled</Badge>
-            ),
+            actions:
+  remaining > 0 ? (
+    <Button
+      size="sm"
+      variant="outline"
+      onClick={() => {
+        setSelectedReturn(r);
+        setRefundAmount(remaining.toString());
+        setRefundOpen(true);
+      }}
+    >
+      Refund
+    </Button>
+  ) : (
+    <Badge variant="secondary">Cash Settled</Badge>
+  ),
           };
         })}
         emptyMessage="No Purchase Returns Found"

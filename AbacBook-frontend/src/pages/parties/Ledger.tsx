@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import api from "@/services/api.js";
 import { useSearchParams } from "react-router-dom";
 import { PageHeader } from "@/components/common/PageHeader";
 import { DataTable } from "@/components/common/DataTable";
@@ -12,94 +13,122 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { FileText, Download, Printer } from "lucide-react";
+import { FileText, Printer } from "lucide-react";
 
-/**
- * Ledger View - Parties Module
- * 
- * DATA COMES FROM CLIENT BACKEND API
- * Expected API endpoint: GET /api/parties/:id/ledger
- * Query params: ?startDate=&endDate=
- * Response: { party, openingBalance, transactions, closingBalance }
- * 
- * This is a read-only ledger view.
- * All calculations are done by the backend.
- */
 export default function Ledger() {
   const [searchParams] = useSearchParams();
-  const partyId = searchParams.get("party");
-  const partyType = searchParams.get("type");
+  const partyIdFromUrl = searchParams.get("party");
+  const partyTypeFromUrl = searchParams.get("type");
 
   const [filters, setFilters] = useState({
-    partyType: partyType || "",
-    partyId: partyId || "",
+    partyType: partyTypeFromUrl || "",
+    partyId: partyIdFromUrl || "",
     startDate: "",
     endDate: new Date().toISOString().split("T")[0],
   });
 
-  // DATA COMES FROM CLIENT BACKEND API
-  // TODO: Fetch parties list based on type
-  // const { data: parties } = useFetch(`/api/parties/${filters.partyType}s`);
-  const parties: { id: string; name: string }[] = [];
+  const [parties, setParties] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [openingBalance, setOpeningBalance] = useState(0);
+  const [closingBalance, setClosingBalance] = useState(0);
 
-  // DATA COMES FROM CLIENT BACKEND API
-  // TODO: Fetch ledger data
-  // const { data: ledger, loading } = useFetch(
-  //   `/api/parties/${filters.partyId}/ledger?startDate=${filters.startDate}&endDate=${filters.endDate}`
-  // );
-  const loading = false;
-  const transactions: Record<string, unknown>[] = [];
+  /* ===============================
+     LOAD PARTIES (Customer/Supplier)
+  =============================== */
+  useEffect(() => {
+    if (!filters.partyType) {
+      setParties([]);
+      return;
+    }
 
+    const loadParties = async () => {
+      try {
+        const res = await api.get(`/${filters.partyType}s`);
+
+        // handle different response shapes safely
+        if (Array.isArray(res.data)) {
+          setParties(res.data);
+        } else if (res.data.suppliers) {
+          setParties(res.data.suppliers);
+        } else if (res.data.customers) {
+          setParties(res.data.customers);
+        } else if (res.data.data) {
+          setParties(res.data.data);
+        } else {
+          setParties([]);
+        }
+      } catch (err) {
+        console.error(err);
+        setParties([]);
+      }
+    };
+
+    loadParties();
+  }, [filters.partyType]);
+
+  /* ===============================
+     LOAD LEDGER DATA
+  =============================== */
+  useEffect(() => {
+    if (!filters.partyId) {
+      setTransactions([]);
+      setOpeningBalance(0);
+      setClosingBalance(0);
+      return;
+    }
+
+    const fetchLedger = async () => {
+      try {
+        setLoading(true);
+
+        const res = await api.get(`/ledger/party/${filters.partyId}`, {
+          params: {
+            startDate: filters.startDate,
+            endDate: filters.endDate,
+          },
+        });
+
+        setTransactions(res.data.transactions || []);
+        setOpeningBalance(res.data.openingBalance || 0);
+        setClosingBalance(res.data.closingBalance || 0);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchLedger();
+  }, [filters.partyId, filters.startDate, filters.endDate]);
+
+  /* ===============================
+     TABLE COLUMNS
+  =============================== */
   const columns = [
-    { key: "date", header: "Date" },
+    {
+      key: "date",
+      header: "Date",
+      render: (row: any) =>
+        new Date(row.date).toLocaleString("en-GB", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: true,
+        }),
+    },
     { key: "particulars", header: "Particulars" },
-    { key: "reference", header: "Reference" },
-    { 
-      key: "debit", 
-      header: "Debit", 
-      className: "text-right",
-      render: (row: Record<string, unknown>) => {
-        const debit = Number(row.debit || 0);
-        return debit > 0 ? (
-          <span className="font-medium">{debit.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
-        ) : "—";
-      },
+    {
+      key: "reference",
+      header: "Reference",
+      render: (row: any) => row.reference || "—",
     },
-    { 
-      key: "credit", 
-      header: "Credit", 
-      className: "text-right",
-      render: (row: Record<string, unknown>) => {
-        const credit = Number(row.credit || 0);
-        return credit > 0 ? (
-          <span className="font-medium">{credit.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
-        ) : "—";
-      },
-    },
-    { 
-      key: "balance", 
-      header: "Balance", 
-      className: "text-right",
-      render: (row: Record<string, unknown>) => {
-        const balance = Number(row.balance || 0);
-        return (
-          <span className={balance > 0 ? "amount-positive" : balance < 0 ? "amount-negative" : "font-medium"}>
-            {balance.toLocaleString("en-US", { minimumFractionDigits: 2 })}
-          </span>
-        );
-      },
-    },
+    { key: "debit", header: "Debit", className: "text-right" },
+    { key: "credit", header: "Credit", className: "text-right" },
+    { key: "balance", header: "Balance", className: "text-right" },
   ];
-
-  const handlePrint = () => {
-    window.print();
-  };
-
-  const handleExport = () => {
-    // DATA COMES FROM CLIENT BACKEND API
-    // TODO: Export ledger to PDF/Excel from API
-    // window.open(`/api/parties/${filters.partyId}/ledger/export?format=pdf`, '_blank');
-  };
 
   return (
     <div>
@@ -109,16 +138,24 @@ export default function Ledger() {
         icon={FileText}
       />
 
-      {/* Filters */}
-      <div className="bg-card rounded-xl border border-border p-6 shadow-card mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-          <div className="space-y-2">
+      {/* FILTER SECTION */}
+      <div className="bg-card p-6 mb-6 rounded-xl border">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+
+          {/* Party Type */}
+          <div>
             <Label>Party Type</Label>
             <Select
               value={filters.partyType}
-              onValueChange={(value) => setFilters({ ...filters, partyType: value, partyId: "" })}
+              onValueChange={(value) =>
+                setFilters((prev) => ({
+                  ...prev,
+                  partyType: value,
+                  partyId: "", // reset party when type changes
+                }))
+              }
             >
-              <SelectTrigger className="form-input-focus">
+              <SelectTrigger>
                 <SelectValue placeholder="Select type" />
               </SelectTrigger>
               <SelectContent>
@@ -128,88 +165,98 @@ export default function Ledger() {
             </Select>
           </div>
 
-          <div className="space-y-2">
+          {/* Party */}
+          <div>
             <Label>Party</Label>
-            {/* DATA COMES FROM CLIENT BACKEND API */}
             <Select
-              value={filters.partyId}
-              onValueChange={(value) => setFilters({ ...filters, partyId: value })}
-            >
-              <SelectTrigger className="form-input-focus">
-                <SelectValue placeholder="Select party" />
-              </SelectTrigger>
-              <SelectContent>
-                {parties.map((party) => (
-                  <SelectItem key={party.id} value={party.id}>
-                    {party.name}
-                  </SelectItem>
-                ))}
-                {parties.length === 0 && (
-                  <div className="p-2 text-sm text-muted-foreground">
-                    Parties loaded from API
-                  </div>
-                )}
-              </SelectContent>
-            </Select>
+  value={filters.partyId}
+  onValueChange={(value) =>
+    setFilters((prev) => ({
+      ...prev,
+      partyId: value,
+    }))
+  }
+>
+  <SelectTrigger>
+    <SelectValue placeholder="Select party" />
+  </SelectTrigger>
+
+  <SelectContent>
+    {Array.isArray(parties) &&
+      parties.map((party) => {
+        const partyId = party._id || party.id;   // 🔥 HANDLE BOTH CASES
+        return (
+          <SelectItem key={partyId} value={partyId}>
+            {party.name}
+          </SelectItem>
+        );
+      })}
+  </SelectContent>
+</Select>
+
           </div>
 
-          <div className="space-y-2">
+          {/* From Date */}
+          <div>
             <Label>From Date</Label>
             <Input
               type="date"
               value={filters.startDate}
-              onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
-              className="form-input-focus"
+              onChange={(e) =>
+                setFilters((prev) => ({
+                  ...prev,
+                  startDate: e.target.value,
+                }))
+              }
             />
           </div>
 
-          <div className="space-y-2">
+          {/* To Date */}
+          <div>
             <Label>To Date</Label>
             <Input
               type="date"
               value={filters.endDate}
-              onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
-              className="form-input-focus"
+              onChange={(e) =>
+                setFilters((prev) => ({
+                  ...prev,
+                  endDate: e.target.value,
+                }))
+              }
             />
           </div>
 
-          <div className="flex items-end gap-2">
-            <Button variant="outline" onClick={handlePrint} className="gap-2">
+          {/* Print */}
+          <div className="flex items-end">
+            <Button variant="outline" onClick={() => window.print()}>
               <Printer className="h-4 w-4" />
-              Print
-            </Button>
-            <Button variant="outline" onClick={handleExport} className="gap-2">
-              <Download className="h-4 w-4" />
-              Export
             </Button>
           </div>
         </div>
       </div>
 
-      {/* Ledger Summary */}
+      {/* SUMMARY */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        {/* DATA COMES FROM CLIENT BACKEND API */}
-        <div className="bg-card rounded-xl border border-border p-4 shadow-card">
-          <p className="text-sm text-muted-foreground">Opening Balance</p>
-          <p className="text-xl font-bold">—</p>
+        <div className="bg-card p-4 rounded-xl border">
+          <p>Opening Balance</p>
+          <p className="font-bold">{openingBalance.toFixed(2)}</p>
         </div>
-        <div className="bg-card rounded-xl border border-border p-4 shadow-card">
-          <p className="text-sm text-muted-foreground">Total Transactions</p>
-          <p className="text-xl font-bold">—</p>
+        <div className="bg-card p-4 rounded-xl border">
+          <p>Total Transactions</p>
+          <p className="font-bold">{transactions.length}</p>
         </div>
-        <div className="bg-card rounded-xl border border-border p-4 shadow-card">
-          <p className="text-sm text-muted-foreground">Closing Balance</p>
-          <p className="text-xl font-bold">—</p>
+        <div className="bg-card p-4 rounded-xl border">
+          <p>Closing Balance</p>
+          <p className="font-bold">{closingBalance.toFixed(2)}</p>
         </div>
       </div>
 
-      {/* Transactions Table */}
-      {/* DATA COMES FROM CLIENT BACKEND API */}
+      {/* TABLE */}
       <DataTable
         columns={columns}
         data={transactions}
         loading={loading}
-        emptyMessage="Select a party to view ledger. Data will be loaded from the backend API."
+        emptyMessage="Select a party to view ledger."
       />
     </div>
   );

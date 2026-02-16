@@ -4,7 +4,7 @@ import Account from "../modules/account.model.js";
 import Supplier from "../modules/supplier.model.js";
 import { stockOut } from "./inventory.service.js";
 import PartyLedger from "../modules/partyLedger.model.js";
-
+import Ledger from "../modules/ledger.model.js";
 export const createPurchaseReturnService = async ({
   purchaseId,
   date,
@@ -122,4 +122,80 @@ export const createPurchaseReturnService = async ({
   await purchase.save();
 
   return returnDoc;
+};
+
+
+export const refundPurchaseReturnService = async ({
+  returnId,
+  amount,
+  paymentMethod,
+  date,
+}) => {
+
+  const returnDoc = await PurchaseReturn.findById(returnId);
+  if (!returnDoc) throw new Error("Purchase return not found");
+
+  if (amount <= 0) throw new Error("Invalid refund amount");
+
+  const remaining =
+    returnDoc.totalAmount - (returnDoc.refundPaid || 0);
+
+  if (amount > remaining) {
+    throw new Error("Refund exceeds remaining return amount");
+  }
+
+  const apAccount = await Account.findOne({ name: "Accounts Payable" });
+
+  const cashAccount =
+    paymentMethod === "cash"
+      ? await Account.findOne({ name: "Cash" })
+      : await Account.findOne({ name: "Bank" });
+
+  if (!apAccount || !cashAccount)
+    throw new Error("Required accounts missing");
+
+  // Ledger Entry
+  await Ledger.create({
+    description: "Purchase Return Refund Received",
+    date,
+    debitAccount: cashAccount._id,
+    creditAccount: apAccount._id,
+    amount,
+  });
+
+  // Party Ledger
+  const lastLedger = await PartyLedger.findOne({
+    partyId: returnDoc.supplierId,
+    partyType: "supplier",
+  }).sort({ createdAt: -1 });
+
+  const previousBalance = lastLedger?.balanceAfter || 0;
+  const newBalance = previousBalance - amount;
+
+  await PartyLedger.create({
+    partyId: returnDoc.supplierId,
+    partyType: "supplier",
+    refType: "PURCHASE_RETURN_REFUND",
+    refId: returnDoc._id,
+    debit: 0,
+    credit: amount,
+    balanceAfter: newBalance,
+  });
+
+  // Update Return
+  returnDoc.refundPaid =
+    (returnDoc.refundPaid || 0) + amount;
+
+  const newRemaining =
+    returnDoc.totalAmount - returnDoc.refundPaid;
+
+  if (newRemaining === 0) {
+    returnDoc.refundStatus = "settled";
+  } else {
+    returnDoc.refundStatus = "partial";
+  }
+
+  await returnDoc.save();
+
+  return { message: "Return refund recorded successfully" };
 };

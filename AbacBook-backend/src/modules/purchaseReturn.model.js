@@ -36,6 +36,15 @@ const purchaseReturnSchema = new mongoose.Schema({
   totalAmount: { type: Number },
   notes: { type: String },
   status: { type: String, default: "processed" },
+  refundPaid: {
+  type: Number,
+  default: 0,
+},
+refundStatus: {
+  type: String,
+  enum: ["unpaid", "partial", "settled"],
+  default: "unpaid",
+},
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
 }, { timestamps: true });
 
