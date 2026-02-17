@@ -2,7 +2,7 @@ import Account from "../modules/account.model.js";
 import Ledger from "../modules/ledger.model.js";
 import Item from "../modules/item.model.js";
 import InventoryTransaction from "../modules/inventoryTransaction.model.js";
-
+import { getInventoryClosingService } from "./inventoryClosing.service.js";
 export const getDashboardData = async () => {
 
   const start = new Date();
@@ -46,12 +46,17 @@ for (const entry of salesEntries) {
   const totalPurchases = purchaseEntries.reduce((sum, e) => sum + e.amount, 0);
 
   // 🔹 Inventory Value
-  const items = await Item.find();
-  const inventoryValue = items.reduce(
-    (sum, item) => sum + (item.quantity * item.avgCost),
-    0
-  );
+  // const items = await Item.find();
+  // const inventoryValue = items.reduce(
+  //   (sum, item) => sum + (item.quantity * item.avgCost),
+  //   0
+  // );
+const closing = await getInventoryClosingService({
+  asOfDate: new Date(),
+  itemType: "all",
+});
 
+const inventoryValue = closing.totalValue;
   // 🔹 Accounts Receivable Balance
   const arEntries = await Ledger.find({
     $or: [

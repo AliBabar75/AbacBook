@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import Item from "../modules/item.model.js";
 import Ledger from "../modules/ledger.model.js";
 import InventoryTransaction from "../modules/inventoryTransaction.model.js";
+import Account from "../modules/account.model.js";
 
 export const stockIn = async ({
   itemId,
@@ -265,22 +266,30 @@ export const conversionService = async ({
 
   await finishedGood.save();
 
+ 
+// await Ledger.create({
+//   description: "Inventory Conversion Adjustment",
+//   debitAccount: inventoryAccount._id,
+//   creditAccount: inventoryAccount._id,
+//   amount: totalCost,
+// });
+
   //  Inventory Transaction
-await InventoryTransaction.create({
-  item: finishedGood._id,
-  finishedGood: finishedGood._id,
+// await InventoryTransaction.create({
+//   item: finishedGood._id,
+//   finishedGood: finishedGood._id,
 
-  type: "CONVERSION",
-  quantity: Number(outputQuantity),
-  totalAmount: totalCost,
-  reference,
-  inputItems: inputItems.map(i => ({
-    rawMaterialId: i.rawMaterialId,
-    quantity: Number(i.quantity),
-  })),
+//   type: "CONVERSION",
+//   quantity: Number(outputQuantity),
+//   totalAmount: totalCost,
+//   reference,
+//   inputItems: inputItems.map(i => ({
+//     rawMaterialId: i.rawMaterialId,
+//     quantity: Number(i.quantity),
+//   })),
 
-  createdBy: userId || null,
-});
+//   createdBy: userId || null,
+// });
 
 await InventoryTransaction.create({
   item: finishedGood._id,
@@ -291,20 +300,10 @@ await InventoryTransaction.create({
   reference: "CONVERSION",
   createdBy: userId || null,
 });
-  
-// isay kia hogha 
-// await InventoryTransaction.create({
-//   item: finishedGood._id,
-//   type: "CONVERSION",
-//   quantity: Number(outputQuantity),
-//   totalAmount: totalCost,
-//   reference,
-//   inputItems: inputItems.map(i => ({
-//     rawMaterialId: i.rawMaterialId,
-//     quantity: Number(i.quantity),
-//   })),
-//   createdBy: userId || null,
-// });
+
+
+
+
 
   return {
     finishedGood: finishedGood.name,

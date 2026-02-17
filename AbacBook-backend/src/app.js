@@ -19,6 +19,7 @@ import expenseRoutes from "./routes/expense.routes.js";
 import openingBalanceRoutes from "./routes/openingBalance.routes.js";
 import agingRoutes from "./routes/aging.routes.js";
 import invoiceRoutes from "./routes/invoice.routes.js";
+import inventoryClosingRoutes from "./routes/inventoryClosing.routes.js";
 
 const app = express();
 app.use(cors());
@@ -46,7 +47,7 @@ app.use("/api/purchase-returns", purchaseReturnRoutes);
 app.use("/api/sales-returns", salesReturnRoutes);
 app.use("/api/expenses", expenseRoutes);
 app.use("/api/opening-balance", openingBalanceRoutes);
-
+app.use("/api/inventory-closing", inventoryClosingRoutes);
 app.use(errorHandler);
 
 export default app;
