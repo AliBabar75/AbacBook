@@ -1,11 +1,17 @@
 import express from "express";
 import { createEntry, getPartyLedger } from "../controllers/ledger.controller.js";
-
+import { authMiddleware } from "../middlewares/auth.middlewares.js";
 const router = express.Router();
 
-router.post("/", createEntry);
-
-// 👇 THIS IS REQUIRED FOR Ledger.tsx
-router.get("/party/:partyId", getPartyLedger);
+router.post("/",
+    
+    authMiddleware,
+    createEntry);
+    
+    
+    router.get("/party/:partyId", 
+        authMiddleware,
+    
+    getPartyLedger);
 
 export default router;

@@ -6,8 +6,8 @@ import { refundSale } from "../controllers/sale.controller.js";
 import { authMiddleware } from "../middlewares/auth.middlewares.js";
 const router = express.Router();
 
-router.post("/", postSale);
-router.get("/", listSales);
+router.post("/", authMiddleware, postSale);
+router.get("/", authMiddleware, listSales);
 router.post("/payment", authMiddleware, receivePayment);
 router.post("/refund", authMiddleware, refundSale);
 export default router;
