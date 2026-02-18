@@ -3,6 +3,7 @@ import Item from "../modules/item.model.js";
 import Ledger from "../modules/ledger.model.js";
 import InventoryTransaction from "../modules/inventoryTransaction.model.js";
 import Account from "../modules/account.model.js";
+import { withTransaction } from "../shared/withTransaction.js";
 
 export const stockIn = async ({
   itemId,
@@ -14,69 +15,78 @@ export const stockIn = async ({
   refId = null,
   userId,
 }) => {
-  if (
-    !itemId ||
-    quantity == null ||
-    unitCost == null ||
-    !debitAccount ||
-    !creditAccount
-  ) {
-    throw new Error("Missing required fields");
-  }
+  return withTransaction(async (session) => {
 
-  if (
-    !mongoose.Types.ObjectId.isValid(itemId) ||
-    !mongoose.Types.ObjectId.isValid(debitAccount) ||
-    !mongoose.Types.ObjectId.isValid(creditAccount)
-  ) {
-    throw new Error("Invalid ID provided");
-  }
+    if (
+      !itemId ||
+      quantity == null ||
+      unitCost == null ||
+      !debitAccount ||
+      !creditAccount
+    ) {
+      throw new Error("Missing required fields");
+    }
 
-  if (quantity <= 0 || unitCost <= 0) {
-    throw new Error("Quantity & unit cost must be greater than zero");
-  }
+    if (
+      !mongoose.Types.ObjectId.isValid(itemId) ||
+      !mongoose.Types.ObjectId.isValid(debitAccount) ||
+      !mongoose.Types.ObjectId.isValid(creditAccount)
+    ) {
+      throw new Error("Invalid ID provided");
+    }
 
-  const item = await Item.findById(itemId);
-  if (!item) throw new Error("Item not found");
+    if (quantity <= 0 || unitCost <= 0) {
+      throw new Error("Quantity & unit cost must be greater than zero");
+    }
 
-  if (!item.unit) {
-    throw new Error("Item unit missing. Fix item master");
-  }
+    const item = await Item.findById(itemId).session(session);
+    if (!item) throw new Error("Item not found");
 
-  const oldValue = item.quantity * item.avgCost;
-  const newValue = quantity * unitCost;
-  const newQty = item.quantity + quantity;
-  // const totalCost = quantity * unitCost;
-  item.quantity = newQty;
-  item.avgCost = (oldValue + newValue) / newQty;
+    if (!item.unit) {
+      throw new Error("Item unit missing. Fix item master");
+    }
 
-  await item.save();
+    const oldValue = item.quantity * item.avgCost;
+    const newValue = quantity * unitCost;
+    const newQty = item.quantity + quantity;
 
-  await Ledger.create({
-    description: "Inventory Stock In",
-    debitAccount,
-    creditAccount,
-    amount: newValue,
+    item.quantity = newQty;
+    item.avgCost = (oldValue + newValue) / newQty;
+
+    await item.save({ session });
+
+    await Ledger.create(
+      [{
+        description: "Inventory Stock In",
+        debitAccount,
+        creditAccount,
+        amount: newValue,
+      }],
+      { session }
+    );
+
+    await InventoryTransaction.create(
+      [{
+        item: item._id,
+        type: "IN",
+        quantity,
+        unitCost,
+        totalAmount: newValue,
+        debitAccount,
+        creditAccount,
+        reference,
+        refId,
+        createdBy: userId || null,
+      }],
+      { session }
+    );
+
+    return {
+      itemId: item._id,
+      quantity: item.quantity,
+      avgCost: item.avgCost,
+    };
   });
-
-  await InventoryTransaction.create({
-    item: item._id,
-    type: "IN",
-    quantity,
-    unitCost,
-    totalAmount: newValue,
-    debitAccount,
-    creditAccount,
-      reference,     // STOCK_IN / PURCHASE
-  refId,         // optional
-    createdBy: userId || null,
-  });
-
-  return {
-    itemId: item._id,
-    quantity: item.quantity,
-    avgCost: item.avgCost,
-  };
 };
 
 export const stockOut = async ({
@@ -86,56 +96,65 @@ export const stockOut = async ({
   creditAccount,
   userId,
 }) => {
-  if (!itemId || quantity == null || !debitAccount || !creditAccount) {
-    throw new Error("Missing required fields");
-  }
+  return withTransaction(async (session) => {
 
-  if (
-    !mongoose.Types.ObjectId.isValid(itemId) ||
-    !mongoose.Types.ObjectId.isValid(debitAccount) ||
-    !mongoose.Types.ObjectId.isValid(creditAccount)
-  ) {
-    throw new Error("Invalid ID provided");
-  }
+    if (!itemId || quantity == null || !debitAccount || !creditAccount) {
+      throw new Error("Missing required fields");
+    }
 
-  if (quantity <= 0) {
-    throw new Error("Quantity must be greater than zero");
-  }
+    if (
+      !mongoose.Types.ObjectId.isValid(itemId) ||
+      !mongoose.Types.ObjectId.isValid(debitAccount) ||
+      !mongoose.Types.ObjectId.isValid(creditAccount)
+    ) {
+      throw new Error("Invalid ID provided");
+    }
 
-  const item = await Item.findById(itemId);
-  if (!item) throw new Error("Item not found");
+    if (quantity <= 0) {
+      throw new Error("Quantity must be greater than zero");
+    }
 
-  if (item.quantity < quantity) {
-    throw new Error("Insufficient stock");
-  }
+    const item = await Item.findById(itemId).session(session);
+    if (!item) throw new Error("Item not found");
 
-  const totalCost = quantity * item.avgCost;
+    if (item.quantity < quantity) {
+      throw new Error("Insufficient stock");
+    }
 
-  item.quantity -= quantity;
-  await item.save();
+    const totalCost = quantity * item.avgCost;
 
-  await Ledger.create({
-    description: "Inventory Stock Out",
-    debitAccount,
-    creditAccount,
-    amount: totalCost,
+    item.quantity -= quantity;
+    await item.save({ session });
+
+    await Ledger.create(
+      [{
+        description: "Inventory Stock Out",
+        debitAccount,
+        creditAccount,
+        amount: totalCost,
+      }],
+      { session }
+    );
+
+    await InventoryTransaction.create(
+      [{
+        item: item._id,
+        type: "OUT",
+        quantity,
+        unitCost: item.avgCost,
+        totalAmount: totalCost,
+        debitAccount,
+        creditAccount,
+        createdBy: userId || null,
+      }],
+      { session }
+    );
+
+    return {
+      itemId: item._id,
+      quantity: item.quantity,
+    };
   });
-
-  await InventoryTransaction.create({
-    item: item._id,
-    type: "OUT",
-    quantity,
-    unitCost: item.avgCost,
-    totalAmount: totalCost,
-    debitAccount,
-    creditAccount,
-    createdBy: userId || null,
-  });
-
-  return {
-    itemId: item._id,
-    quantity: item.quantity,
-  };
 };
 
 export const listRawMaterials = async ({
@@ -164,6 +183,7 @@ export const listRawMaterials = async ({
     value: item.quantity * item.avgCost,
   }));
 };
+
 export const normalizeQty = (qty, fromUnit, toUnit) => {
   if (!UNIT_MAP[fromUnit] || !UNIT_MAP[toUnit]) {
     throw new Error(`Unsupported unit conversion: ${fromUnit} → ${toUnit}`);
@@ -209,7 +229,6 @@ export const consumeRecipeService = async ({
   return { success: true, totalCost };
 };
 
-// console.log("REQ INPUT ITEMS:", inputItems);
 export const conversionService = async ({
   finishedGoodId,
   outputQuantity,
@@ -223,7 +242,6 @@ export const conversionService = async ({
 
   let totalCost = 0;
 
-  //  Consume RAW MATERIALS
   for (const input of inputItems) {
     const item = await Item.findById(input.rawMaterialId);
     if (!item) throw new Error("Raw material not found");
@@ -239,21 +257,17 @@ export const conversionService = async ({
     await item.save();
 
     await InventoryTransaction.create({
-  // item: item._id,                 // raw material
-  item: input.rawMaterialId,               
-  finishedGood: finishedGoodId, 
-  type: "OUT",
-  quantity: Number(input.quantity),
-  unitCost: item.avgCost,
-  totalAmount: cost,
-  reference: "CONVERSION",
-  createdBy: userId || null,
-});
-
-
+      item: input.rawMaterialId,
+      finishedGood: finishedGoodId,
+      type: "OUT",
+      quantity: Number(input.quantity),
+      unitCost: item.avgCost,
+      totalAmount: cost,
+      reference: "CONVERSION",
+      createdBy: userId || null,
+    });
   }
 
-  //  Produce FINISHED GOOD
   const finishedGood = await Item.findById(finishedGoodId);
   if (!finishedGood) throw new Error("Finished good not found");
 
@@ -266,44 +280,15 @@ export const conversionService = async ({
 
   await finishedGood.save();
 
- 
-// await Ledger.create({
-//   description: "Inventory Conversion Adjustment",
-//   debitAccount: inventoryAccount._id,
-//   creditAccount: inventoryAccount._id,
-//   amount: totalCost,
-// });
-
-  //  Inventory Transaction
-// await InventoryTransaction.create({
-//   item: finishedGood._id,
-//   finishedGood: finishedGood._id,
-
-//   type: "CONVERSION",
-//   quantity: Number(outputQuantity),
-//   totalAmount: totalCost,
-//   reference,
-//   inputItems: inputItems.map(i => ({
-//     rawMaterialId: i.rawMaterialId,
-//     quantity: Number(i.quantity),
-//   })),
-
-//   createdBy: userId || null,
-// });
-
-await InventoryTransaction.create({
-  item: finishedGood._id,
-  type: "IN",
-  quantity: Number(outputQuantity),
-  unitCost: finishedGood.avgCost,
-  totalAmount: totalCost,
-  reference: "CONVERSION",
-  createdBy: userId || null,
-});
-
-
-
-
+  await InventoryTransaction.create({
+    item: finishedGood._id,
+    type: "IN",
+    quantity: Number(outputQuantity),
+    unitCost: finishedGood.avgCost,
+    totalAmount: totalCost,
+    reference: "CONVERSION",
+    createdBy: userId || null,
+  });
 
   return {
     finishedGood: finishedGood.name,

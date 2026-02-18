@@ -28,5 +28,5 @@ const partyLedgerSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
-
+partyLedgerSchema.index({ partyId: 1, createdAt: 1 });
 export default mongoose.model("PartyLedger", partyLedgerSchema);

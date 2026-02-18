@@ -7,11 +7,12 @@ const saleSchema = new mongoose.Schema(
       required: true,
     },
 
-    invoiceNo: {
-      type: String,
-      required: true,
-      unique: true,
-    },
+   invoiceNo: {
+  type: String,
+  required: true,
+  unique: true,
+  index: true,
+},
 
     customerId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -39,8 +40,12 @@ totalReturned: {
       enum: ["UNPAID", "PARTIAL", "PAID"],
       default: "UNPAID",
     },
+    
   },
   { timestamps: true }
+  
 );
+saleSchema.index({ customerId: 1, date: 1 });
+saleSchema.index({ date: 1 });
 
 export default mongoose.model("Sale", saleSchema);

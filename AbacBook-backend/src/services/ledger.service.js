@@ -3,6 +3,20 @@ import PartyLedger from "../modules/partyLedger.model.js";
 import Sale from "../modules/sale.model.js";
 import Purchase from "../modules/purchase.model.js";
 
+export const validateLedgerEntry = ({ debitAccount, creditAccount, amount }) => {
+  if (!debitAccount || !creditAccount) {
+    throw new Error("Ledger accounts required");
+  }
+
+  if (debitAccount.toString() === creditAccount.toString()) {
+    throw new Error("Debit and Credit cannot be same");
+  }
+
+  if (!amount || amount <= 0) {
+    throw new Error("Invalid ledger amount");
+  }
+};
+
 export const createLedgerEntry = async ({
   date,
   referenceType,
@@ -13,7 +27,11 @@ export const createLedgerEntry = async ({
   partyId,
   narration,
 }) => {
-
+validateLedgerEntry({
+  debitAccount,
+  creditAccount,
+  amount
+});
   return await Ledger.create({
     date,
     referenceType,

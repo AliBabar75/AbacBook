@@ -5,114 +5,137 @@ import PartyLedger from "../modules/partyLedger.model.js";
 import InventoryTransaction from "../modules/inventoryTransaction.model.js";
 import Account from "../modules/account.model.js";
 import Ledger from "../modules/ledger.model.js";
+import { withTransaction } from "../shared/withTransaction.js";
 
 export const createSale = async (data) => {
-  const { date, invoiceNo, customerId, items, notes } = data;
+  return withTransaction(async (session) => {
 
-  if (!items || items.length === 0) {
-    throw new Error("Sale items required");
-  }
+    const { date, invoiceNo, customerId, items, notes } = data;
 
-  const revenueAccount = await Account.findOne({ name: "Sale Revenue" });
-  const arAccount = await Account.findOne({ name: "Accounts Receivable" });
-  const cogsAccount = await Account.findOne({ name: "Cost of Goods Sold" });
-  const inventoryAccount = await Account.findOne({ name: "Inventory" });
-
-  if (!revenueAccount || !arAccount || !cogsAccount || !inventoryAccount) {
-    throw new Error("Required accounts missing");
-  }
-
-  let totalAmount = 0;
-  let totalCOGS = 0;
-
-  for (const row of items) {
-    const item = await Item.findById(row.itemId);
-    if (!item) throw new Error("Item not found");
-
-    if (item.quantity < row.quantity) {
-      throw new Error(`Insufficient stock for ${item.name}`);
+    if (!items || items.length === 0) {
+      throw new Error("Sale items required");
     }
 
-    totalAmount += row.quantity * row.rate;
-  }
+    const revenueAccount = await Account.findOne({ name: "Sale Revenue" }).session(session);
+    const arAccount = await Account.findOne({ name: "Accounts Receivable" }).session(session);
+    const cogsAccount = await Account.findOne({ name: "Cost of Goods Sold" }).session(session);
+    const inventoryAccount = await Account.findOne({ name: "Inventory" }).session(session);
 
-  const sale = await Sale.create({
-    date,
-    invoiceNo,
-    customerId,
-    notes,
-    totalAmount,
-    status: "UNPAID",
+    if (!revenueAccount || !arAccount || !cogsAccount || !inventoryAccount) {
+      throw new Error("Required accounts missing");
+    }
+
+    let totalAmount = 0;
+    let totalCOGS = 0;
+
+    for (const row of items) {
+      const item = await Item.findById(row.itemId).session(session);
+      if (!item) throw new Error("Item not found");
+
+      if (item.quantity < row.quantity) {
+        throw new Error(`Insufficient stock for ${item.name}`);
+      }
+
+      totalAmount += row.quantity * row.rate;
+    }
+
+    const sale = await Sale.create(
+      [{
+        date,
+        invoiceNo,
+        customerId,
+        notes,
+        totalAmount,
+        status: "UNPAID",
+      }],
+      { session }
+    );
+
+    for (const row of items) {
+      const item = await Item.findById(row.itemId).session(session);
+
+      const amount = row.quantity * row.rate;
+      const cogs = row.quantity * item.avgCost;
+      totalCOGS += cogs;
+
+      await SaleItem.create(
+        [{
+          saleId: sale[0]._id,
+          itemId: item._id,
+          quantity: row.quantity,
+          rate: row.rate,
+          amount,
+          cogs,
+        }],
+        { session }
+      );
+
+      item.quantity -= row.quantity;
+      await item.save({ session });
+
+      await InventoryTransaction.create(
+        [{
+          item: item._id,
+          type: "OUT",
+          quantity: row.quantity,
+          unitCost: item.avgCost,
+          totalAmount: cogs,
+          reference: "SALE",
+        }],
+        { session }
+      );
+    }
+
+    // Revenue Entry
+    await Ledger.create(
+      [{
+        description: "Sale Revenue",
+        date,
+        debitAccount: arAccount._id,
+        creditAccount: revenueAccount._id,
+        amount: totalAmount,
+      }],
+      { session }
+    );
+
+    // COGS Entry
+    await Ledger.create(
+      [{
+        description: "Cost of Goods Sold",
+        date,
+        debitAccount: cogsAccount._id,
+        creditAccount: inventoryAccount._id,
+        amount: totalCOGS,
+      }],
+      { session }
+    );
+
+    // Party Ledger
+    const lastLedger = await PartyLedger.findOne({
+      partyId: customerId,
+      partyType: "customer",
+    }).sort({ createdAt: -1 }).session(session);
+
+    const previousBalance = lastLedger?.balanceAfter || 0;
+    const newBalance = previousBalance + totalAmount;
+
+    await PartyLedger.create(
+      [{
+        partyId: customerId,
+        partyType: "customer",
+        refType: "SALE",
+        refId: sale[0]._id,
+        debit: totalAmount,
+        credit: 0,
+        balanceAfter: newBalance,
+      }],
+      { session }
+    );
+
+    return sale[0];
   });
-
-  for (const row of items) {
-    const item = await Item.findById(row.itemId);
-
-    const amount = row.quantity * row.rate;
-    const cogs = row.quantity * item.avgCost;
-    totalCOGS += cogs;
-
-    await SaleItem.create({
-      saleId: sale._id,
-      itemId: item._id,
-      quantity: row.quantity,
-      rate: row.rate,
-      amount,
-      cogs,
-    });
-
-    item.quantity -= row.quantity;
-    await item.save();
-
-    await InventoryTransaction.create({
-      item: item._id,
-      type: "OUT",
-      quantity: row.quantity,
-      unitCost: item.avgCost,
-      totalAmount: cogs,
-      reference: "SALE",
-    });
-  }
-
-  // Revenue Entry
-  await Ledger.create({
-    description: "Sale Revenue",
-    date,
-    debitAccount: arAccount._id,
-    creditAccount: revenueAccount._id,
-    amount: totalAmount,
-  });
-
-  // COGS Entry
-  await Ledger.create({
-    description: "Cost of Goods Sold",
-    date,
-    debitAccount: cogsAccount._id,
-    creditAccount: inventoryAccount._id,
-    amount: totalCOGS,
-  });
-
-  // Party Ledger
-  const lastLedger = await PartyLedger.findOne({
-    partyId: customerId,
-    partyType: "customer",
-  }).sort({ createdAt: -1 });
-
-  const previousBalance = lastLedger?.balanceAfter || 0;
-  const newBalance = previousBalance + totalAmount;
-
-  await PartyLedger.create({
-    partyId: customerId,
-    partyType: "customer",
-    refType: "SALE",
-    refId: sale._id,
-    debit: totalAmount,
-    credit: 0,
-    balanceAfter: newBalance,
-  });
-
-  return sale;
 };
+
 export const getSales = async () => {
   const sales = await Sale.find()
     .populate("customerId", "name phone")
@@ -128,100 +151,110 @@ export const getSales = async () => {
 
   return sales;
 };
+
 export const receiveSalePayment = async ({
   saleId,
   amount,
   paymentMethod,
   date,
 }) => {
-  if (!saleId || !amount)
-    throw new Error("Sale ID and amount required");
+  return withTransaction(async (session) => {
 
-  if (amount <= 0)
-    throw new Error("Invalid payment amount");
+    if (!saleId || !amount)
+      throw new Error("Sale ID and amount required");
 
-  const sale = await Sale.findById(saleId);
-  if (!sale) throw new Error("Sale not found");
+    if (amount <= 0)
+      throw new Error("Invalid payment amount");
 
-  const remaining = sale.totalAmount - (sale.totalPaid || 0);
+    const sale = await Sale.findById(saleId).session(session);
+    if (!sale) throw new Error("Sale not found");
 
-  if (amount > remaining)
-    throw new Error("Payment exceeds remaining balance");
+    const remaining = sale.totalAmount - (sale.totalPaid || 0);
 
-  // ===============================
-  // ACCOUNTS
-  // ===============================
+    if (amount > remaining)
+      throw new Error("Payment exceeds remaining balance");
 
-  const arAccount = await Account.findOne({ name: "Accounts Receivable" });
-  if (!arAccount) throw new Error("Accounts Receivable missing");
+    // ===============================
+    // ACCOUNTS
+    // ===============================
 
-  let cashAccount;
+    const arAccount = await Account.findOne({ name: "Accounts Receivable" }).session(session);
+    if (!arAccount) throw new Error("Accounts Receivable missing");
 
-  if (paymentMethod === "cash") {
-    cashAccount = await Account.findOne({ name: "Cash" });
-  } else if (
-    paymentMethod === "bank" ||
-    paymentMethod === "card" ||
-    paymentMethod === "cheque"
-  ) {
-    cashAccount = await Account.findOne({ name: "Bank" });
-  }
+    let cashAccount;
 
-  if (!cashAccount)
-    throw new Error("Cash/Bank account missing");
+    if (paymentMethod === "cash") {
+      cashAccount = await Account.findOne({ name: "Cash" }).session(session);
+    } else if (
+      paymentMethod === "bank" ||
+      paymentMethod === "card" ||
+      paymentMethod === "cheque"
+    ) {
+      cashAccount = await Account.findOne({ name: "Bank" }).session(session);
+    }
 
-  // ===============================
-  // LEDGER ENTRY
-  // ===============================
+    if (!cashAccount)
+      throw new Error("Cash/Bank account missing");
 
-  await Ledger.create({
-    description: "Sale Payment Received",
-    date,
-    debitAccount: cashAccount._id,
-    creditAccount: arAccount._id,
-    amount,
+    // ===============================
+    // LEDGER ENTRY
+    // ===============================
+
+    await Ledger.create(
+      [{
+        description: "Sale Payment Received",
+        date,
+        debitAccount: cashAccount._id,
+        creditAccount: arAccount._id,
+        amount,
+      }],
+      { session }
+    );
+
+    // ===============================
+    // PARTY LEDGER
+    // ===============================
+
+    const lastLedger = await PartyLedger.findOne({
+      partyId: sale.customerId,
+      partyType: "customer",
+    }).sort({ createdAt: -1 }).session(session);
+
+    const previousBalance = lastLedger?.balanceAfter || 0;
+    const newBalance = previousBalance - amount;
+
+    await PartyLedger.create(
+      [{
+        partyId: sale.customerId,
+        partyType: "customer",
+        refType: "SALE_PAYMENT",
+        refId: sale._id,
+        debit: 0,
+        credit: amount,
+        balanceAfter: newBalance,
+      }],
+      { session }
+    );
+
+    // ===============================
+    // UPDATE SALE STATUS
+    // ===============================
+
+    sale.totalPaid = (sale.totalPaid || 0) + amount;
+
+    if (sale.totalPaid === sale.totalAmount) {
+      sale.status = "PAID";
+    } else {
+      sale.status = "PARTIAL";
+    }
+
+    await sale.save({ session });
+
+    return {
+      success: true,
+      message: "Payment received successfully",
+    };
   });
-
-  // ===============================
-  // PARTY LEDGER
-  // ===============================
-
-  const lastLedger = await PartyLedger.findOne({
-    partyId: sale.customerId,
-    partyType: "customer",
-  }).sort({ createdAt: -1 });
-
-  const previousBalance = lastLedger?.balanceAfter || 0;
-  const newBalance = previousBalance - amount;
-
-  await PartyLedger.create({
-    partyId: sale.customerId,
-    partyType: "customer",
-    refType: "SALE_PAYMENT",
-    refId: sale._id,
-    debit: 0,
-    credit: amount,
-    balanceAfter: newBalance,
-  });
-
-  // ===============================
-  // UPDATE SALE STATUS
-  // ===============================
-
-  sale.totalPaid = (sale.totalPaid || 0) + amount;
-
-  if (sale.totalPaid === sale.totalAmount) {
-    sale.status = "PAID";
-  } else {
-    sale.status = "PARTIAL";
-  }
-
-  await sale.save();
-
-  return {
-    success: true,
-    message: "Payment received successfully",
-  };
 };
 
 
@@ -231,69 +264,80 @@ export const refundSalePayment = async ({
   paymentMethod,
   date,
 }) => {
-  
-const sale = await Sale.findById(saleId);
+  return withTransaction(async (session) => {
 
-  if (!sale) throw new Error("Sale not found");
+    const sale = await Sale.findById(saleId).session(session);
 
-  if (amount <= 0) throw new Error("Invalid refund amount");
+    if (!sale) throw new Error("Sale not found");
 
-  const arAccount = await Account.findOne({ name: "Accounts Receivable" });
-  const cashAccount =
-    paymentMethod === "cash"
-      ? await Account.findOne({ name: "Cash" })
-      : await Account.findOne({ name: "Bank" });
+    if (amount <= 0) throw new Error("Invalid refund amount");
 
-  if (!arAccount || !cashAccount)
-    throw new Error("Required accounts missing");
+    const arAccount = await Account.findOne({ name: "Accounts Receivable" }).session(session);
 
-  // 🔹 Ledger Entry (Refund)
-  await Ledger.create({
-    description: "Sales Refund",
-    date,
-    debitAccount: arAccount._id,
-    creditAccount: cashAccount._id,
-    amount,
+    const cashAccount =
+      paymentMethod === "cash"
+        ? await Account.findOne({ name: "Cash" }).session(session)
+        : await Account.findOne({ name: "Bank" }).session(session);
+
+    if (!arAccount || !cashAccount)
+      throw new Error("Required accounts missing");
+
+    // 🔹 Ledger Entry (Refund)
+    await Ledger.create(
+      [{
+        description: "Sales Refund",
+        date,
+        debitAccount: arAccount._id,
+        creditAccount: cashAccount._id,
+        amount,
+      }],
+      { session }
+    );
+
+    // 🔹 Party Ledger Update
+    const lastLedger = await PartyLedger.findOne({
+      partyId: sale.customerId,
+      partyType: "customer",
+    }).sort({ createdAt: -1 }).session(session);
+
+    const previousBalance = lastLedger?.balanceAfter || 0;
+    const newBalance = previousBalance + amount;
+
+    await PartyLedger.create(
+      [{
+        partyId: sale.customerId,
+        partyType: "customer",
+        refType: "SALE_REFUND",
+        refId: sale._id,
+        debit: amount,
+        credit: 0,
+        balanceAfter: newBalance,
+      }],
+      { session }
+    );
+
+    // 🔹 Update Sale Paid
+    if (amount > (sale.totalPaid || 0)) {
+  throw new Error("Refund exceeds paid amount");
+}
+    sale.totalPaid = (sale.totalPaid || 0) - amount;
+
+    const netSale =
+      sale.totalAmount - (sale.totalReturned || 0);
+
+    const outstanding =
+      netSale - (sale.totalPaid || 0);
+
+    if (outstanding <= 0) {
+      sale.status = "PAID";
+    } else if ((sale.totalPaid || 0) > 0) {
+      sale.status = "PARTIAL";
+    } else {
+      sale.status = "UNPAID";
+    }
+
+    await sale.save({ session });
+
+    return { message: "Refund successful" };
   });
-
-  // 🔹 Party Ledger Update
-  const lastLedger = await PartyLedger.findOne({
-    partyId: sale.customerId,
-    partyType: "customer",
-  }).sort({ createdAt: -1 });
-
-  const previousBalance = lastLedger?.balanceAfter || 0;
-  const newBalance = previousBalance + amount;
-
-  await PartyLedger.create({
-    partyId: sale.customerId,
-    partyType: "customer",
-    refType: "SALE_REFUND",
-    refId: sale._id,
-    debit: amount,
-    credit: 0,
-    balanceAfter: newBalance,
-    
-  });
-
-  // 🔹 Update Sale Paid
-  sale.totalPaid = (sale.totalPaid || 0) - amount;
-
-  const netSale =
-    sale.totalAmount - (sale.totalReturned || 0);
-
-  const outstanding =
-    netSale - (sale.totalPaid || 0);
-
-  if (outstanding <= 0) {
-    sale.status = "PAID";
-  } else if ((sale.totalPaid || 0) > 0) {
-    sale.status = "PARTIAL";
-  } else {
-    sale.status = "UNPAID";
-  }
-
-  await sale.save();
-
-  return { message: "Refund successful" };
 };
