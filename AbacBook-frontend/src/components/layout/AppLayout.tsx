@@ -5,8 +5,7 @@ export function AppLayout() {
   const navigate = useNavigate();
 
   const handleLogout = () => {
-    // DATA COMES FROM CLIENT BACKEND API
-    // Clear authentication token from localStorage
+ 
     localStorage.removeItem("auth_token");
     navigate("/login");
   };
