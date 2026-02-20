@@ -32,7 +32,7 @@ const match = await bcrypt.compare(password, user.password);
 if (!match) throw new AppError("Invalid credentials", 401);
 
 
-const token = jwt.sign({ id: user._id }, env.jwtSecret, { expiresIn: "15m" });
+const token = jwt.sign({ id: user._id }, env.jwtSecret, { expiresIn: "1hr" });
 
 
 return { user, token };
