@@ -26,7 +26,7 @@ const purchaseSchema = new mongoose.Schema(
     totalAmount: { type: Number, required: true },
     status: {
       type: String,
-      enum: ["unpaid", "partial", "paid"],
+      enum: ["unpaid", "partial", "paid","returned"],
       default: "unpaid",
     },
     totalPaid: {

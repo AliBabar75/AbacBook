@@ -3,12 +3,7 @@ import Item from "../modules/item.model.js";
 
 export const createItem = async (req, res, next) => {
   try {
-    console.log("AUTH USER:", req.user);
-
-    // const item = await Item.create({
-    //   ...req.body 
-    // });
-
+    
 const payload = { ...req.body };
 
 const name = payload.name?.toLowerCase() || "";
@@ -22,15 +17,20 @@ const item = await Item.create(payload);
 
     res.status(201).json(item);
   } catch (err) {
-  
-      console.log("CREATE ITEM ERROR >>>", err);
-  return res.status(400).json({
-    success: false,
-    message: err.message,
-    details: err.errors || null,
-  });
-  
+
+  // Agar Mongoose required field error hai
+  if (err.name === "ValidationError") {
+    return res.status(400).json({
+      success: false,
+      message: "Please fill all required fields"
+    });
   }
+
+  return res.status(500).json({
+    success: false,
+    message: "Something went wrong while creating item"
+  });
+}
 };
 
 export const getItems = async (req, res, next) => {

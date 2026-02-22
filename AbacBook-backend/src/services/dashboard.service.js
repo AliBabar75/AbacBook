@@ -3,6 +3,8 @@ import Ledger from "../modules/ledger.model.js";
 import Item from "../modules/item.model.js";
 import InventoryTransaction from "../modules/inventoryTransaction.model.js";
 import { getInventoryClosingService } from "./inventoryClosing.service.js";
+import Purchase from "../modules/purchase.model.js";
+
 export const getDashboardData = async () => {
 
   const start = new Date();
@@ -38,12 +40,15 @@ for (const entry of salesEntries) {
   // const totalSales = salesEntries.reduce((sum, e) => sum + e.amount, 0);
 
   // 🔹 Total Purchases (This Month)
-  const purchaseEntries = await Ledger.find({
-    date: { $gte: start },
-    creditAccount: apAccount?._id
-  });
+ const purchases = await Purchase.find({
+  date: { $gte: start }
+});
 
-  const totalPurchases = purchaseEntries.reduce((sum, e) => sum + e.amount, 0);
+let totalPurchases = 0;
+
+for (const p of purchases) {
+  totalPurchases += (p.totalAmount - (p.totalReturned || 0));
+}
 
   // 🔹 Inventory Value
   // const items = await Item.find();

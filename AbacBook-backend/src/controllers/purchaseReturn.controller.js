@@ -1,25 +1,13 @@
 import { createPurchaseReturnService } from "../services/purchaseReturn.service.js";
 import PurchaseReturn from "../modules/purchaseReturn.model.js";
 import { refundPurchaseReturnService } from "../services/purchaseReturn.service.js";
-// export const listPurchaseReturns = async (req, res) => {
-//   try {
-//     const returns = await PurchaseReturn.find()
-//       .populate("purchaseId", "invoiceNo supplierId")
-//       .populate("items.rawMaterialId", "name");
 
-//     res.json(returns);
-//   } catch (err) {
-//     console.error(err);
-    
-//     res.status(500).json({ message: "Server error" });
-//   }
-// };
 export const listPurchaseReturns = async (req, res) => {
   try {
     const returns = await PurchaseReturn.find()
       .populate({
         path: "purchaseId",
-        select: "invoiceNo supplierId",
+        select: "invoiceNo supplierId totalPaid totalAmount totalReturned",
         populate: {
           path: "supplierId",
           select: "name",

@@ -61,17 +61,7 @@ export const createPurchaseReturnService = async ({
       throw new Error("Return exceeds purchase total");
     }
 
-    // STOCK OUT
-    for (const item of normalizedItems) {
-      await stockOut({
-        itemId: item.rawMaterialId,
-        quantity: item.quantity,
-        debitAccount: apAccount._id,
-        creditAccount: inventoryAccount._id,
-        userId,
-        session, // transactional context only
-      });
-    }
+   
 
     const returnDoc = await PurchaseReturn.create(
       [{
@@ -118,16 +108,31 @@ export const createPurchaseReturnService = async ({
     const outstanding =
       netPurchase - (purchase.totalPaid || 0);
 
-    if (outstanding <= 0) {
-      purchase.status = "paid";
-    } else if ((purchase.totalPaid || 0) > 0) {
-      purchase.status = "partial";
-    } else {
-      purchase.status = "unpaid";
-    }
+   if (netPurchase === 0 && (purchase.totalPaid || 0) === 0) {
+  purchase.status = "returned";
+}
+else if (outstanding <= 0) {
+  purchase.status = "paid";
+}
+else if ((purchase.totalPaid || 0) > 0) {
+  purchase.status = "partial";
+}
+else {
+  purchase.status = "unpaid";
+}
 
     await purchase.save({ session });
-
+ // STOCK OUT
+    for (const item of normalizedItems) {
+      await stockOut({
+        itemId: item.rawMaterialId,
+        quantity: item.quantity,
+        debitAccount: apAccount._id,
+        creditAccount: inventoryAccount._id,
+        userId,
+        session, // transactional context only
+      });
+    }
     return returnDoc[0];
   });
 };
@@ -146,7 +151,18 @@ export const refundPurchaseReturnService = async ({
     if (!returnDoc) throw new Error("Purchase return not found");
 
     if (amount <= 0) throw new Error("Invalid refund amount");
+const purchase = await Purchase.findById(returnDoc.purchaseId).session(session);
 
+if (!purchase) throw new Error("Original purchase not found");
+
+if ((purchase.totalPaid || 0) === 0) {
+  throw new Error("Refund not allowed: Purchase was never paid");
+}
+const netPurchase = purchase.totalAmount - (purchase.totalReturned || 0);
+
+if (purchase.totalPaid <= netPurchase) {
+  throw new Error("Refund not allowed: No overpayment exists");
+}
     const remaining =
       returnDoc.totalAmount - (returnDoc.refundPaid || 0);
 
@@ -155,25 +171,32 @@ export const refundPurchaseReturnService = async ({
     }
 
     const apAccount = await Account.findOne({ name: "Accounts Payable" }).session(session);
+    // const refundAccount = await Account.findOne({ name: "Purchase Return Refund" }).session(session);
 
     const cashAccount =
       paymentMethod === "cash"
         ? await Account.findOne({ name: "Cash" }).session(session)
         : await Account.findOne({ name: "Bank" }).session(session);
 
-    if (!apAccount || !cashAccount)
+    if (!apAccount|| !cashAccount)
       throw new Error("Required accounts missing");
 
-    await Ledger.create(
-      [{
-        description: "Purchase Return Refund Received",
-        date,
-        debitAccount: cashAccount._id,
-        creditAccount: apAccount._id,
-        amount,
-      }],
-      { session }
-    );
+const overpaid = purchase.totalPaid - netPurchase;
+
+if (amount > overpaid) {
+  throw new Error("Refund exceeds overpaid amount");
+}
+    
+  await Ledger.create(
+  [{
+    description: "Purchase Return Refund Received",
+    date,
+    debitAccount: cashAccount._id,
+    creditAccount:apAccount._id,
+    amount,
+  }],
+  { session }
+);
 
     const lastLedger = await PartyLedger.findOne({
       partyId: returnDoc.supplierId,
