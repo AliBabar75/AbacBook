@@ -238,13 +238,9 @@ export default function PurchaseReturn() {
           if (!purchase) return {};
 const totalRefunded = r.refundPaid || 0;
 const remaining = r.totalAmount - totalRefunded;
-          // const totalAmount = purchase.totalAmount || 0;
-          // const totalReturned = purchase.totalReturned || 0;
-          // const totalPaid = purchase.totalPaid || 0;
-
-          // const netPurchase = totalAmount - totalReturned;
-          // const refundable = totalPaid > netPurchase;
-          // const refundAmt = refundable ? totalPaid - netPurchase : 0;
+const netPurchase = purchase.totalAmount - (purchase.totalReturned || 0);
+const overpaid = (purchase.totalPaid || 0) - netPurchase;
+const purchasePaid = overpaid > 0;
 
           return {
             returnNo: r.returnNo,
@@ -254,21 +250,21 @@ const remaining = r.totalAmount - totalRefunded;
             qty: r.items?.reduce((sum: number, i: any) => sum + i.quantity, 0),
             total: r.totalAmount,
             actions:
-  remaining > 0 ? (
-    <Button
-      size="sm"
-      variant="outline"
-      onClick={() => {
-        setSelectedReturn(r);
-        setRefundAmount(remaining.toString());
-        setRefundOpen(true);
-      }}
-    >
-      Refund
-    </Button>
-  ) : (
-    <Badge variant="secondary">Cash Settled</Badge>
-  ),
+ purchasePaid && remaining > 0 ? (
+  <Button
+    size="sm"
+    variant="outline"
+    onClick={() => {
+      setSelectedReturn(r);
+      setRefundAmount(remaining.toString());
+      setRefundOpen(true);
+    }}
+  >
+    Refund
+  </Button>
+) : (
+  <Badge variant="secondary">Cash Settled</Badge>
+),
           };
         })}
         emptyMessage="No Purchase Returns Found"

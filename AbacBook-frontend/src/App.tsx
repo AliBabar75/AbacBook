@@ -33,6 +33,7 @@ import SalesReturn from "./pages/sales/SalesReturn";
 import Expenses from "./pages/Expenses";
 import OpeningBalance from "./pages/OpeningBalance";
 import MdSecretPanel from "@/pages/MdSecretPanel";
+
 const queryClient = new QueryClient();
 
 const App = () => (

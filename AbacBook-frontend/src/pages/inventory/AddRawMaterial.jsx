@@ -2,15 +2,17 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createItem } from "@/services/inventory.service";
+import { useToast } from "@/components/ui/use-toast";
 
 export default function AddRawMaterial({ onSuccess }) {
+  const { toast } = useToast();
   const [form, setForm] = useState({
     code: "",
     name: "",
-    type: "",
+    type: "RAW_MATERIAL",
     unit: "",
-    quantity:"",
-    avgCost:"",
+    // quantity:"",
+    // avgCost:"",
     
   });
 
@@ -23,7 +25,10 @@ export default function AddRawMaterial({ onSuccess }) {
       setError("");
 
       await createItem(form);
-
+toast({
+  title: "Success",
+  description: "Raw Material Saved Successfully",
+});
       setForm({
         code: "",
         name: "",
@@ -35,11 +40,18 @@ export default function AddRawMaterial({ onSuccess }) {
       });
 
       onSuccess && onSuccess();
-    } catch (err) {
-      setError(
-        err?.response?.data?.message || "Failed to create raw material"
-      );
-    } finally {
+    }catch (err) {
+
+  const msg = err?.response?.data?.message;
+
+  toast({
+    title: "Error",
+    description: msg || "Something went wrong. Please try again.",
+    variant: "destructive",
+  });
+
+  setError(msg || "Something went wrong. Please try again.");
+} finally {
       setLoading(false);
     }
   };
@@ -78,7 +90,7 @@ useEffect(() => {
           value={form.unit}
           onChange={(e) => setForm({ ...form, unit: e.target.value })}
         />
-        <Input
+        {/* <Input
           placeholder="quantity )"
           value={form.quantity}
           onChange={(e) => setForm({ ...form, quantity: e.target.value })}
@@ -87,7 +99,7 @@ useEffect(() => {
           placeholder="Avgcost"
           value={form.avgCost}
           onChange={(e) => setForm({ ...form, avgCost: e.target.value })}
-        />
+        /> */}
       </div>
 
       {error && (
