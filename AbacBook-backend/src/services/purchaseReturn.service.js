@@ -129,6 +129,8 @@ else {
         quantity: item.quantity,
         debitAccount: apAccount._id,
         creditAccount: inventoryAccount._id,
+        reference: "PURCHASE_RETURN",
+  refId: returnDoc[0]._id,
         userId,
         session, // transactional context only
       });

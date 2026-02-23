@@ -33,8 +33,9 @@ const inventoryTransactionSchema = new mongoose.Schema(
 
 
     reference: {
-      type: String,
-    },
+  type: String,
+  required: true,
+},
     debitAccount: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Account",

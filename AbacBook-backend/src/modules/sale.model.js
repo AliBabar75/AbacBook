@@ -37,7 +37,7 @@ totalReturned: {
 
     status: {
       type: String,
-      enum: ["UNPAID", "PARTIAL", "PAID"],
+     enum: ["UNPAID", "PARTIAL", "PAID", "RETURNED"],
       default: "UNPAID",
     },
     

@@ -240,13 +240,18 @@ export const receiveSalePayment = async ({
     // UPDATE SALE STATUS
     // ===============================
 
-    sale.totalPaid = (sale.totalPaid || 0) + amount;
+   sale.totalPaid = (sale.totalPaid || 0) + amount;
 
-    if (sale.totalPaid === sale.totalAmount) {
-      sale.status = "PAID";
-    } else {
-      sale.status = "PARTIAL";
-    }
+const netSale =
+  sale.totalAmount - (sale.totalReturned || 0);
+
+if (sale.totalPaid === 0) {
+  sale.status = "UNPAID";
+} else if (sale.totalPaid < netSale) {
+  sale.status = "PARTIAL";
+} else {
+  sale.status = "PAID";
+}
 
     await sale.save({ session });
 
@@ -282,7 +287,7 @@ export const refundSalePayment = async ({
     if (!arAccount || !cashAccount)
       throw new Error("Required accounts missing");
 
-    // 🔹 Ledger Entry (Refund)
+    //  Ledger Entry (Refund)
     await Ledger.create(
       [{
         description: "Sales Refund",
@@ -294,7 +299,7 @@ export const refundSalePayment = async ({
       { session }
     );
 
-    // 🔹 Party Ledger Update
+    // Party Ledger Update
     const lastLedger = await PartyLedger.findOne({
       partyId: sale.customerId,
       partyType: "customer",
@@ -316,25 +321,22 @@ export const refundSalePayment = async ({
       { session }
     );
 
-    // 🔹 Update Sale Paid
+    // Update Sale Paid
     if (amount > (sale.totalPaid || 0)) {
   throw new Error("Refund exceeds paid amount");
 }
     sale.totalPaid = (sale.totalPaid || 0) - amount;
 
-    const netSale =
-      sale.totalAmount - (sale.totalReturned || 0);
+   const netSale =
+  sale.totalAmount - (sale.totalReturned || 0);
 
-    const outstanding =
-      netSale - (sale.totalPaid || 0);
-
-    if (outstanding <= 0) {
-      sale.status = "PAID";
-    } else if ((sale.totalPaid || 0) > 0) {
-      sale.status = "PARTIAL";
-    } else {
-      sale.status = "UNPAID";
-    }
+if (sale.totalPaid === 0) {
+  sale.status = "UNPAID";
+} else if (sale.totalPaid < netSale) {
+  sale.status = "PARTIAL";
+} else {
+  sale.status = "PAID";
+}
 
     await sale.save({ session });
 

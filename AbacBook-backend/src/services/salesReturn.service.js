@@ -129,26 +129,27 @@ export const createSalesReturn = async (data) => {
       { session }
     );
 
-    // UPDATE SALE AFTER RETURN
-    sale.totalReturned = (sale.totalReturned || 0) + totalAmount;
+   // UPDATE SALE AFTER RETURN
 
-    const netAmount =
-      sale.totalAmount - (sale.totalReturned || 0);
+sale.totalReturned = (sale.totalReturned || 0) + totalAmount;
 
-    const outstanding =
-      netAmount - (sale.totalPaid || 0);
+const netSale =
+  sale.totalAmount - sale.totalReturned;
 
-    if (outstanding <= 0) {
-      sale.status = "PAID";
-    } else if (sale.totalPaid > 0) {
-      sale.status = "PARTIAL";
-    } else {
-      sale.status = "UNPAID";
-    }
+if (netSale === 0 && (sale.totalPaid || 0) === 0) {
+  sale.status = "RETURNED";
+}
+else if ((sale.totalPaid || 0) < netSale) {
+  sale.status = "PARTIAL";
+}
+else if ((sale.totalPaid || 0) === netSale) {
+  sale.status = "PAID";
+}
+else {
+  sale.status = "UNPAID";
+}
 
-    await sale.save({ session });
-
-    return salesReturn[0];
+await sale.save({ session });
   });
 };
 

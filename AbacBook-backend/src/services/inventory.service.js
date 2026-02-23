@@ -94,6 +94,8 @@ export const stockOut = async ({
   quantity,
   debitAccount,
   creditAccount,
+   reference = "STOCK_OUT",
+  refId = null,
   userId,
 }) => {
   return withTransaction(async (session) => {
@@ -145,6 +147,8 @@ export const stockOut = async ({
         totalAmount: totalCost,
         debitAccount,
         creditAccount,
+        reference,
+    refId,
         createdBy: userId || null,
       }],
       { session }

@@ -262,19 +262,18 @@ export const getBalanceSheet = async (asOfDate) => {
   const balance = balances[acc._id.toString()] || 0;
 
   // Assets
- if (acc.type === "ASSET") {
-  const assetBalance = balance > 0 ? balance : 0;
+if (acc.type === "ASSET") {
 
-  if (acc.name === "Cash") cash = assetBalance;
-  if (acc.name === "Accounts Receivable") receivable = assetBalance;
-  if (acc.name === "Inventory") inventory = assetBalance;
+  if (acc.name === "Cash") cash = balance;
+  if (acc.name === "Accounts Receivable") receivable = balance;
+  if (acc.name === "Inventory") inventory = balance;
 }
 
   // Liabilities
   if (acc.type === "LIABILITY") {
-  const liabilityBalance = balance < 0 ? Math.abs(balance) : 0;
-
-  if (acc.name === "Accounts Payable") payable = liabilityBalance;
+  // const liabilityBalance = balance < 0 ? Math.abs(balance) : 0;
+if (acc.name === "Accounts Payable") payable = -balance;
+  // if (acc.name === "Accounts Payable") payable = liabilityBalance;
 }
 
   // Equity
@@ -284,20 +283,21 @@ export const getBalanceSheet = async (asOfDate) => {
 
   // Income
   if (acc.type === "INCOME") {
-    retainedEarnings += Math.abs(balance);
-  }
+  retainedEarnings += -balance;
+}
 
   // Expense
-  if (acc.type === "EXPENSE") {
-    retainedEarnings -= balance;
-  }
+ if (acc.type === "EXPENSE") {
+  retainedEarnings -= balance;
+}
 }
 
   const totalAssets = cash + receivable + inventory;
   const totalLiabilities = payable;
   const totalEquity = capital + retainedEarnings;
-
+const difference = totalAssets - (totalLiabilities + totalEquity);
   return {
+    difference,
     assets: {
       cash,
       receivable,

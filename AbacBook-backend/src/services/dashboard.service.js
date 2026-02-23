@@ -108,6 +108,8 @@ const inventoryValue = closing.totalValue;
     date: new Date(t.createdAt).toLocaleDateString(),
     type: t.type,
     party: t.item?.name || "—",
+      reason: t.reference || "—",
+  reference: t.reference || "—",
     amount: t.totalAmount
   }));
 
