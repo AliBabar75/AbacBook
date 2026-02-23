@@ -43,8 +43,11 @@ useEffect(() => {
 
   const transactionColumns = [
     { key: "date", header: "Date" },
+    { key: "party", header: "Item" },
+    { key: "reason", header: "Reason" },
+    { key: "reference", header: "Reference" },
     { key: "type", header: "Type" },
-    { key: "party", header: "Party" },
+    // { key: "", header: "" },
     { key: "amount", header: "Amount", className: "text-right" },
   ];
 
